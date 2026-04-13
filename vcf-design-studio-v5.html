@@ -654,6 +654,59 @@ function newFleet() {
   };
 }
 
+// Build default appliance-to-site assignments for a stretched instance.
+// Each appliance VM is assigned to a site in alternating fashion so the VMs
+// are roughly evenly distributed. Returns a map: { [applianceKey]: [siteId, ...] }
+// where the array length equals the appliance's `instances` count.
+function buildDefaultPlacement(instance) {
+  const siteIds = instance.siteIds || [];
+  if (siteIds.length < 2) return {};
+  const placement = {};
+  for (const dom of instance.domains || []) {
+    for (const clu of dom.clusters || []) {
+      for (const entry of clu.infraStack || []) {
+        const count = entry.instances || 1;
+        const assigned = [];
+        for (let i = 0; i < count; i++) {
+          assigned.push(siteIds[i % siteIds.length]);
+        }
+        placement[entry.key] = assigned;
+      }
+    }
+    if (dom.type === "workload") {
+      for (const entry of dom.wldStack || []) {
+        const count = entry.instances || 1;
+        const assigned = [];
+        for (let i = 0; i < count; i++) {
+          assigned.push(siteIds[i % siteIds.length]);
+        }
+        placement[entry.key] = assigned;
+      }
+    }
+  }
+  return placement;
+}
+
+// Ensure instance.appliancePlacement exists and covers all current stack entries.
+// Adds missing keys with default alternating assignments, removes stale keys.
+function ensurePlacement(instance) {
+  if ((instance.siteIds || []).length < 2) return {};
+  const existing = instance.appliancePlacement || {};
+  const defaults = buildDefaultPlacement(instance);
+  const merged = {};
+  for (const [key, defaultAssign] of Object.entries(defaults)) {
+    const prev = existing[key];
+    if (prev && prev.length === defaultAssign.length) {
+      // Validate all site IDs still exist on this instance
+      const valid = prev.every((sid) => instance.siteIds.includes(sid));
+      merged[key] = valid ? prev : defaultAssign;
+    } else {
+      merged[key] = defaultAssign;
+    }
+  }
+  return merged;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MIGRATION — convert old v2 flat format into new v3 hierarchical structure.
 // Old format: { version: "vcf-sizer-v2", mgmt: {...}, wlds: [{...}] }
@@ -3435,8 +3488,12 @@ function InstancesPanel({ fleet, fleetResult, onChange }) {
 // Each leaf cluster gets its own row; internal nodes are vertically centered
 // over their children.
 // ─────────────────────────────────────────────────────────────────────────────
-function TopologyView({ fleet, fleetResult }) {
-  const layout = useMemo(() => {
+function TopologyView({ fleet, fleetResult, setFleet }) {
+  const [topoView, setTopoView] = useState("logical");
+  const [showMermaid, setShowMermaid] = useState(false);
+  const [mermaidCopied, setMermaidCopied] = useState(false);
+
+  const logicalLayout = useMemo(() => {
     try {
       return computeTopologyLayout(fleet, fleetResult);
     } catch (err) {
@@ -3445,11 +3502,36 @@ function TopologyView({ fleet, fleetResult }) {
     }
   }, [fleet, fleetResult]);
 
-  if (layout._error) {
+  const physicalLayout = useMemo(() => {
+    try {
+      return computePhysicalLayout(fleet, fleetResult);
+    } catch (err) {
+      console.error("Physical layout error:", err);
+      return { sites: [], stretchedBands: [], witnesses: [], width: 400, height: 100, _error: err.message };
+    }
+  }, [fleet, fleetResult]);
+
+  const activeLayout = topoView === "logical" ? logicalLayout : physicalLayout;
+
+  const exportDrawio = () => {
+    const xml = generateDrawioXml(activeLayout, topoView);
+    const date = new Date().toISOString().slice(0, 10);
+    downloadFile(xml, `vcf-topology-${topoView}-${date}.drawio`, "application/xml");
+  };
+
+  const handleCopyMermaid = () => {
+    const code = generateMermaidCode(activeLayout, topoView);
+    navigator.clipboard.writeText(code).then(() => {
+      setMermaidCopied(true);
+      setTimeout(() => setMermaidCopied(false), 2000);
+    });
+  };
+
+  if (logicalLayout._error && topoView === "logical") {
     return (
       <div className="border border-rose-300 bg-rose-50 rounded-lg p-5">
         <h2 className="font-serif text-xl text-rose-900 mb-2">Topology rendering error</h2>
-        <p className="text-sm text-rose-700 font-mono">{layout._error}</p>
+        <p className="text-sm text-rose-700 font-mono">{logicalLayout._error}</p>
         <p className="text-xs text-rose-600 font-mono mt-2">
           Check the browser console for details. This usually indicates a stretched-cluster
           configuration referencing a site that no longer exists, or a domain missing required fields.
@@ -3458,48 +3540,134 @@ function TopologyView({ fleet, fleetResult }) {
     );
   }
 
+  const SubTabBtn = ({ value, children }) => (
+    <button
+      onClick={() => setTopoView(value)}
+      className={`text-[10px] uppercase tracking-wider font-mono px-3 py-1.5 rounded border ${
+        topoView === value
+          ? "bg-blue-600 text-white border-blue-600"
+          : "text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600"
+      }`}
+    >{children}</button>
+  );
+
   return (
     <div className="border border-blue-200 bg-white rounded-lg p-5">
-      <div className="flex items-baseline justify-between border-b border-blue-200 pb-2 mb-4">
-        <h2 className="font-serif text-2xl text-slate-900">Fleet Topology</h2>
-        <span className="text-[10px] uppercase tracking-[0.2em] text-blue-600 font-mono">
-          Auto-generated · Read-only · Screenshot for design docs
-        </span>
+      <div className="flex items-center justify-between border-b border-blue-200 pb-2 mb-4 flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="font-serif text-2xl text-slate-900">Fleet Topology</h2>
+          <div className="flex gap-1">
+            <SubTabBtn value="logical">Logical</SubTabBtn>
+            <SubTabBtn value="physical">Physical</SubTabBtn>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={exportDrawio}
+            className="text-[10px] uppercase tracking-wider font-mono text-slate-600 border border-slate-200 hover:border-blue-400 hover:text-blue-600 rounded px-3 py-1.5">
+            Export draw.io
+          </button>
+          <button onClick={() => setShowMermaid(true)}
+            className="text-[10px] uppercase tracking-wider font-mono text-slate-600 border border-slate-200 hover:border-blue-400 hover:text-blue-600 rounded px-3 py-1.5">
+            Copy Mermaid
+          </button>
+        </div>
       </div>
-      <div className="overflow-auto bg-slate-50 rounded border border-slate-200 p-4">
-        <svg
-          width={layout.width}
-          height={layout.height}
-          xmlns="http://www.w3.org/2000/svg"
-          style={{ minWidth: "100%" }}
-        >
-          {/* Connector lines first so they render under the boxes */}
-          {layout.connectors.map((conn, i) => (
-            <TopologyConnector key={`c-${i}`} from={conn.from} to={conn.to} />
-          ))}
-          {/* Dashed connectors for stretched cluster cross-site relationships */}
-          {(layout.stretchedConnectors || []).map((conn, i) => (
-            <TopologyConnector key={`sc-${i}`} from={conn.from} to={conn.to} dashed />
-          ))}
-          {/* Boxes */}
-          {layout.boxes.map((box) => (
-            <TopologyBox key={box.id} box={box} />
-          ))}
-        </svg>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-3 text-[10px] font-mono text-slate-400">
-        <LegendChip color="#2563eb" label="Fleet" />
-        <LegendChip color="#475569" label="Site" />
-        <LegendChip color="#0284c7" label="VCF Instance" />
-        <LegendChip color="#7c3aed" label="Mgmt Domain" />
-        <LegendChip color="#e11d48" label="Workload Domain" />
-        <LegendChip color="#16a34a" label="Cluster" />
-        <LegendChip color="#ca8a04" label="Witness (vSAN)" />
-        <span className="flex items-center gap-1.5">
-          <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
-          <span>Stretched</span>
-        </span>
-      </div>
+
+      {topoView === "logical" ? (
+        <>
+          <div className="overflow-auto bg-slate-50 rounded border border-slate-200 p-4">
+            <svg
+              width={logicalLayout.width}
+              height={logicalLayout.height}
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ minWidth: "100%" }}
+            >
+              {logicalLayout.connectors.map((conn, i) => (
+                <TopologyConnector key={`c-${i}`} from={conn.from} to={conn.to} />
+              ))}
+              {(logicalLayout.stretchedConnectors || []).map((conn, i) => (
+                <TopologyConnector key={`sc-${i}`} from={conn.from} to={conn.to} dashed />
+              ))}
+              {logicalLayout.boxes.map((box) => (
+                <TopologyBox key={box.id} box={box} />
+              ))}
+            </svg>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-3 text-[10px] font-mono text-slate-400">
+            <LegendChip color="#2563eb" label="Fleet" />
+            <LegendChip color="#475569" label="Site" />
+            <LegendChip color="#0284c7" label="VCF Instance" />
+            <LegendChip color="#7c3aed" label="Mgmt Domain" />
+            <LegendChip color="#e11d48" label="Workload Domain" />
+            <LegendChip color="#16a34a" label="Cluster" />
+            <LegendChip color="#ca8a04" label="Witness (vSAN)" />
+            <span className="flex items-center gap-1.5">
+              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
+              <span>Stretched</span>
+            </span>
+          </div>
+        </>
+      ) : (
+        <>
+          <PhysicalTopologyView fleet={fleet} fleetResult={fleetResult} setFleet={setFleet} />
+          <div className="mt-3 flex flex-wrap gap-3 text-[10px] font-mono text-slate-400">
+            <LegendChip color="#475569" label="Site" />
+            <LegendChip color="#7c3aed" label="Mgmt Domain" />
+            <LegendChip color="#e11d48" label="Workload Domain" />
+            <LegendChip color="#16a34a" label="Cluster" />
+            <LegendChip color="#64748b" label="Appliance" />
+            <LegendChip color="#ca8a04" label="Witness" />
+            <span className="flex items-center gap-1.5">
+              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
+              <span>Stretched</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex gap-0.5">
+                <span className="w-2 h-2 rounded-full bg-green-600"></span>
+                <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                <span className="w-2 h-2 rounded-full bg-red-600"></span>
+              </span>
+              <span>Failover</span>
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Mermaid code modal */}
+      {showMermaid && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={() => setShowMermaid(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h3 className="font-serif text-lg text-slate-900">
+                Mermaid Diagram Code ({topoView === "logical" ? "Logical" : "Physical"})
+              </h3>
+              <button onClick={() => setShowMermaid(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-5 flex-1 overflow-auto">
+              <textarea readOnly
+                value={generateMermaidCode(activeLayout, topoView)}
+                className="w-full h-64 font-mono text-xs bg-slate-50 border border-slate-200 rounded p-3 resize-none"
+              />
+              <p className="text-xs text-slate-400 mt-2 font-mono">
+                Paste into mermaid.live or a GitHub markdown block to render the diagram.
+              </p>
+            </div>
+            <div className="border-t border-slate-200 px-5 py-3 flex justify-end gap-2">
+              <button onClick={handleCopyMermaid}
+                className="text-[10px] uppercase tracking-wider font-mono text-white bg-blue-600 hover:bg-blue-700 rounded px-4 py-2">
+                {mermaidCopied ? "Copied!" : "Copy to Clipboard"}
+              </button>
+              <button onClick={() => setShowMermaid(false)}
+                className="text-[10px] uppercase tracking-wider font-mono text-slate-600 border border-slate-200 hover:border-slate-400 rounded px-4 py-2">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3516,17 +3684,19 @@ function LegendChip({ color, label }) {
   );
 }
 
+const TOPOLOGY_COLORS = {
+  fleet:     { fill: "#eff6ff", stroke: "#2563eb", text: "#1e3a5f" },
+  site:      { fill: "#f8fafc", stroke: "#475569", text: "#1e3a5f" },
+  instance:  { fill: "#f0f9ff", stroke: "#0284c7", text: "#0c4a6e" },
+  mgmt:      { fill: "#f5f3ff", stroke: "#7c3aed", text: "#4c1d95" },
+  workload:  { fill: "#fff1f2", stroke: "#e11d48", text: "#881337" },
+  cluster:   { fill: "#f0fdf4", stroke: "#16a34a", text: "#14532d" },
+  witness:   { fill: "#fefce8", stroke: "#ca8a04", text: "#713f12" },
+  appliance: { fill: "#f0f9ff", stroke: "#64748b", text: "#334155" },
+};
+
 function TopologyBox({ box }) {
-  const colors = {
-    fleet:    { fill: "#eff6ff", stroke: "#2563eb", text: "#1e3a5f" },
-    site:     { fill: "#f8fafc", stroke: "#475569", text: "#1e3a5f" },
-    instance: { fill: "#f0f9ff", stroke: "#0284c7", text: "#0c4a6e" },
-    mgmt:     { fill: "#f5f3ff", stroke: "#7c3aed", text: "#4c1d95" },
-    workload: { fill: "#fff1f2", stroke: "#e11d48", text: "#881337" },
-    cluster:  { fill: "#f0fdf4", stroke: "#16a34a", text: "#14532d" },
-    witness:  { fill: "#fefce8", stroke: "#ca8a04", text: "#713f12" },
-  };
-  const c = colors[box.kind] || colors.cluster;
+  const c = TOPOLOGY_COLORS[box.kind] || TOPOLOGY_COLORS.cluster;
 
   // Witness boxes are smaller and simpler
   if (box.kind === "witness") {
@@ -3826,6 +3996,763 @@ function computeTopologyLayout(fleet, fleetResult) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// EXPORT UTILITIES
+// ─────────────────────────────────────────────────────────────────────────────
+function escapeXml(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function downloadFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function sanitizeMermaidId(s) {
+  return String(s).replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHYSICAL (SITE-CENTRIC) TOPOLOGY LAYOUT
+//
+// Produces a nested container layout: sites as large rectangles containing
+// their domains and clusters, with appliance icons inside each cluster.
+// Stretched domains appear in both site containers connected by dashed bands.
+// ─────────────────────────────────────────────────────────────────────────────
+const PHYS_SITE_PAD = 24;
+const PHYS_DOMAIN_PAD = 16;
+const PHYS_CLUSTER_PAD = 12;
+const PHYS_SITE_GAP = 140;
+const PHYS_DOMAIN_GAP = 14;
+const PHYS_CLUSTER_GAP = 10;
+const PHYS_APPLIANCE_W = 280;
+const PHYS_APPLIANCE_H = 24;
+const PHYS_APPLIANCE_GAP = 3;
+const PHYS_APPLIANCE_COLS = 1;
+const PHYS_CLUSTER_HEADER_H = 52;
+const PHYS_DOMAIN_HEADER_H = 30;
+const PHYS_SITE_HEADER_H = 36;
+const PHYS_HOST_BADGE_H = 22;
+const PHYS_CANVAS_PAD = 30;
+
+function computePhysicalLayout(fleet, fleetResult) {
+
+  const sites = [];
+  const stretchedBands = [];
+  const witnesses = [];
+
+  // Build lookup maps
+  const siteById = {};
+  fleet.sites.forEach((s) => { siteById[s.id] = s; });
+
+  // For each site, collect domains that belong to it (local domains pinned here,
+  // plus stretched domains from instances touching this site).
+  const siteDomains = {};
+  fleet.sites.forEach((s) => { siteDomains[s.id] = []; });
+
+  // Track stretched domain pairs to draw bands later
+  const stretchedPairs = [];
+
+  fleet.instances.forEach((inst, iIdx) => {
+    const ir = fleetResult.instanceResults[iIdx];
+    if (!ir) return;
+    const isStretched = (inst.siteIds || []).length === 2;
+
+    inst.domains.forEach((dom, dIdx) => {
+      const dr = ir.domainResults[dIdx];
+      if (!dr) return;
+
+      if (isStretched && dom.placement === "stretched") {
+        // Stretched domain appears in both sites
+        inst.siteIds.forEach((sId) => {
+          if (siteDomains[sId]) {
+            const pct = typeof dom.hostSplitPct === "number" ? dom.hostSplitPct : 50;
+            const sharePct = sId === inst.siteIds[0] ? pct : 100 - pct;
+            siteDomains[sId].push({ dom, dr, inst, ir, sharePct, stretched: true });
+          }
+        });
+        stretchedPairs.push({ domId: dom.id, siteIds: inst.siteIds, dom, hostSplitPct: dom.hostSplitPct });
+      } else {
+        // Local domain — pinned to localSiteId or siteIds[0]
+        const targetSite = dom.localSiteId && inst.siteIds.includes(dom.localSiteId)
+          ? dom.localSiteId : inst.siteIds[0];
+        if (siteDomains[targetSite]) {
+          siteDomains[targetSite].push({ dom, dr, inst, ir, sharePct: 100, stretched: false });
+        }
+      }
+    });
+
+    // Collect witness
+    if (isStretched && inst.witnessEnabled !== false && inst.witnessSite?.name && ir.witness) {
+      witnesses.push({
+        id: `witness-${inst.id}`,
+        label: `Witness: ${inst.witnessSite.name}`,
+        size: inst.witnessSize || "Medium",
+        instanceName: inst.name,
+        siteIds: inst.siteIds,
+        vcpu: ir.witness.vcpu,
+        ram: ir.witness.ram,
+        instances: ir.witness.instances,
+      });
+    }
+  });
+
+  // Lay out each site
+  let siteX = PHYS_CANVAS_PAD;
+
+  fleet.sites.forEach((site) => {
+    const entries = siteDomains[site.id] || [];
+    let innerY = PHYS_SITE_PAD + PHYS_SITE_HEADER_H;
+    const domainLayouts = [];
+
+    entries.forEach((entry) => {
+      const { dom, dr, inst, sharePct, stretched } = entry;
+      const placement = stretched ? ensurePlacement(inst) : {};
+      let clusterInnerY = PHYS_DOMAIN_PAD + PHYS_DOMAIN_HEADER_H;
+      const clusterLayouts = [];
+
+      dom.clusters.forEach((clu, cIdx) => {
+        const cr = dr.clusterResults[cIdx];
+        if (!cr) return;
+
+        // Collect appliances for this cluster, split by site placement
+        const appliances = (clu.infraStack || []).map((item) => {
+          const def = APPLIANCE_DB[item.id];
+          const sz = def?.sizes?.[item.size] || { vcpu: 0, ram: 0, disk: 0 };
+          const totalCount = item.instances || 1;
+          // For stretched domains, count only VMs assigned to this site
+          let countHere = totalCount;
+          if (stretched && placement[item.key]) {
+            countHere = placement[item.key].filter((sid) => sid === site.id).length;
+          }
+          if (countHere === 0) return null;
+          return {
+            id: item.id,
+            key: item.key,
+            instId: inst.id,
+            label: def?.label || item.id,
+            size: item.size,
+            count: countHere,
+            totalCount,
+            vcpu: sz.vcpu * countHere,
+            ram: sz.ram * countHere,
+            disk: sz.disk * countHere,
+            canMove: stretched && totalCount > 1,
+          };
+        }).filter(Boolean);
+
+        // Calculate cluster box height
+        const applianceRows = Math.ceil(appliances.length / PHYS_APPLIANCE_COLS);
+        const applianceBlockH = applianceRows > 0
+          ? applianceRows * (PHYS_APPLIANCE_H + PHYS_APPLIANCE_GAP) + 4
+          : 0;
+        const clusterH = PHYS_CLUSTER_HEADER_H + PHYS_HOST_BADGE_H + applianceBlockH + PHYS_CLUSTER_PAD;
+
+        // Compute host count at this site for stretched clusters
+        const full = cr.finalHosts || 0;
+        let hostsHere = full;
+        if (stretched) {
+          const pct = typeof dom.hostSplitPct === "number" ? dom.hostSplitPct : 50;
+          const primaryHosts = Math.ceil(full * (pct / 100));
+          hostsHere = sharePct === pct ? primaryHosts : full - primaryHosts;
+        }
+
+        clusterLayouts.push({
+          id: clu.id,
+          name: clu.name,
+          relY: clusterInnerY,
+          height: clusterH,
+          hostCount: hostsHere,
+          totalHosts: full,
+          cores: cr.licensedCores,
+          rawTib: cr.rawTib,
+          limiter: cr.limiter,
+          failover: cr.failover,
+          appliances,
+        });
+
+        clusterInnerY += clusterH + PHYS_CLUSTER_GAP;
+      });
+
+      const domainH = clusterInnerY + PHYS_DOMAIN_PAD - PHYS_CLUSTER_GAP;
+
+      domainLayouts.push({
+        id: dom.id,
+        name: dom.name,
+        type: dom.type,
+        placement: stretched ? "stretched" : "local",
+        sharePct,
+        relY: innerY,
+        height: domainH,
+        clusters: clusterLayouts,
+      });
+
+      innerY += domainH + PHYS_DOMAIN_GAP;
+    });
+
+    const siteH = innerY + PHYS_SITE_PAD - PHYS_DOMAIN_GAP;
+
+    // Compute widths: cluster content width drives everything
+    const clusterContentW = PHYS_CLUSTER_PAD * 2 + PHYS_APPLIANCE_COLS * (PHYS_APPLIANCE_W + PHYS_APPLIANCE_GAP);
+    const domainW = PHYS_DOMAIN_PAD * 2 + clusterContentW;
+    const siteW = PHYS_SITE_PAD * 2 + domainW;
+
+    // Position clusters and domains absolutely
+    const domainsFinal = domainLayouts.map((dl) => ({
+      ...dl,
+      x: siteX + PHYS_SITE_PAD,
+      y: dl.relY,
+      width: domainW,
+      clusters: dl.clusters.map((cl) => ({
+        ...cl,
+        x: siteX + PHYS_SITE_PAD + PHYS_DOMAIN_PAD,
+        y: dl.relY + cl.relY,
+        width: clusterContentW,
+      })),
+    }));
+
+    sites.push({
+      id: site.id,
+      name: site.name,
+      location: site.location || "",
+      x: siteX,
+      y: PHYS_CANVAS_PAD,
+      width: siteW,
+      height: Math.max(siteH, 120),
+      domains: domainsFinal,
+    });
+
+    siteX += siteW + PHYS_SITE_GAP;
+  });
+
+  // Normalize: all sites same height, and matched stretched domains/clusters
+  // share the same height so the layout is balanced across sites.
+  if (sites.length > 1) {
+    const maxH = Math.max(...sites.map((s) => s.height));
+    sites.forEach((s) => { s.height = maxH; });
+
+    // Equalize matched domain heights across sites
+    const domIds = new Set();
+    sites.forEach((s) => s.domains.forEach((d) => domIds.add(d.id)));
+    for (const did of domIds) {
+      const matches = sites.flatMap((s) => s.domains.filter((d) => d.id === did));
+      if (matches.length > 1) {
+        const maxDH = Math.max(...matches.map((d) => d.height));
+        matches.forEach((d) => { d.height = maxDH; });
+
+        // Equalize matched cluster heights within those domains
+        const maxClusters = Math.max(...matches.map((d) => d.clusters.length));
+        for (let ci = 0; ci < maxClusters; ci++) {
+          const cluMatches = matches.map((d) => d.clusters[ci]).filter(Boolean);
+          if (cluMatches.length > 1) {
+            const maxCH = Math.max(...cluMatches.map((c) => c.height));
+            cluMatches.forEach((c) => { c.height = maxCH; });
+          }
+        }
+      }
+    }
+  }
+
+  // Build stretched bands connecting matching domains across sites
+  stretchedPairs.forEach((pair) => {
+    const s0 = sites.find((s) => s.id === pair.siteIds[0]);
+    const s1 = sites.find((s) => s.id === pair.siteIds[1]);
+    if (!s0 || !s1) return;
+    const d0 = s0.domains.find((d) => d.id === pair.domId);
+    const d1 = s1.domains.find((d) => d.id === pair.domId);
+    if (!d0 || !d1) return;
+    const pct = typeof pair.hostSplitPct === "number" ? pair.hostSplitPct : 50;
+    stretchedBands.push({
+      domainId: pair.domId,
+      label: `Stretched ${pct}/${100 - pct}`,
+      from: { x: s0.x + s0.width, y: PHYS_CANVAS_PAD + d0.y + d0.height / 2 },
+      to: { x: s1.x, y: PHYS_CANVAS_PAD + d1.y + d1.height / 2 },
+    });
+  });
+
+  // Position witnesses below the sites
+  const maxSiteBottom = Math.max(...sites.map((s) => s.y + s.height), 200);
+  witnesses.forEach((w, i) => {
+    w.x = PHYS_CANVAS_PAD + i * 280;
+    w.y = maxSiteBottom + 30;
+    w.width = 260;
+    w.height = 50;
+  });
+
+  const totalWidth = Math.max(
+    siteX - PHYS_SITE_GAP + PHYS_CANVAS_PAD,
+    witnesses.length * 280 + PHYS_CANVAS_PAD * 2,
+    400
+  );
+  const witnessBottom = witnesses.length > 0 ? witnesses[0].y + witnesses[0].height + PHYS_CANVAS_PAD : 0;
+  const totalHeight = Math.max(maxSiteBottom + PHYS_CANVAS_PAD, witnessBottom, 200);
+
+  return { sites, stretchedBands, witnesses, width: totalWidth, height: totalHeight };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHYSICAL TOPOLOGY SVG COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
+function PhysicalTopologyView({ fleet, fleetResult, setFleet }) {
+  const layout = useMemo(() => {
+    try {
+      return computePhysicalLayout(fleet, fleetResult);
+    } catch (err) {
+      console.error("Physical layout error:", err);
+      return { sites: [], stretchedBands: [], witnesses: [], width: 400, height: 100, _error: err.message };
+    }
+  }, [fleet, fleetResult]);
+
+  // Move one VM of an appliance from the current site to the other site
+  const moveAppliance = (instId, appKey, fromSiteId) => {
+    setFleet((prev) => ({
+      ...prev,
+      instances: prev.instances.map((inst) => {
+        if (inst.id !== instId) return inst;
+        if ((inst.siteIds || []).length < 2) return inst;
+        const otherSite = inst.siteIds.find((s) => s !== fromSiteId) || inst.siteIds[1];
+        const placement = ensurePlacement(inst);
+        const arr = [...(placement[appKey] || [])];
+        // Find first entry matching fromSiteId and move it to otherSite
+        const idx = arr.indexOf(fromSiteId);
+        if (idx === -1) return inst;
+        // Don't allow moving the last VM off a site if it would leave 0 at fromSite
+        // (allow it — user may want all VMs at one site)
+        arr[idx] = otherSite;
+        return { ...inst, appliancePlacement: { ...placement, [appKey]: arr } };
+      }),
+    }));
+  };
+
+  if (layout._error) {
+    return (
+      <div className="border border-rose-300 bg-rose-50 rounded-lg p-5">
+        <h2 className="font-serif text-xl text-rose-900 mb-2">Physical layout error</h2>
+        <p className="text-sm text-rose-700 font-mono">{layout._error}</p>
+      </div>
+    );
+  }
+
+  const verdictColor = (v) => v === "green" ? "#16a34a" : v === "yellow" ? "#ca8a04" : "#dc2626";
+
+  return (
+    <div className="overflow-auto bg-slate-50 rounded border border-slate-200 p-4">
+      <svg width={layout.width} height={layout.height} xmlns="http://www.w3.org/2000/svg"
+        style={{ minWidth: "100%" }}>
+
+        {/* Stretched bands */}
+        {layout.stretchedBands.map((band, i) => {
+          const midX = (band.from.x + band.to.x) / 2;
+          return (
+            <g key={`band-${i}`}>
+              <path
+                d={`M ${band.from.x} ${band.from.y} L ${band.to.x} ${band.to.y}`}
+                stroke="#2563eb" strokeWidth={2} strokeDasharray="8 4" fill="none"
+              />
+              <rect x={midX - 50} y={Math.min(band.from.y, band.to.y) - 14}
+                width={100} height={18} rx={9} fill="#eff6ff" stroke="#2563eb" strokeWidth={0.8} />
+              <text x={midX} y={Math.min(band.from.y, band.to.y) - 2}
+                textAnchor="middle" fontFamily="IBM Plex Mono, monospace" fontSize={8}
+                fill="#2563eb" fontWeight="500">{band.label}</text>
+            </g>
+          );
+        })}
+
+        {/* Site containers */}
+        {layout.sites.map((site) => (
+          <g key={site.id}>
+            {/* Site box */}
+            <rect x={site.x} y={site.y} width={site.width} height={site.height}
+              rx={8} fill={TOPOLOGY_COLORS.site.fill} stroke={TOPOLOGY_COLORS.site.stroke}
+              strokeWidth={2} />
+            {/* Site header */}
+            <text x={site.x + 14} y={site.y + 22}
+              fontFamily="Inter, system-ui, sans-serif" fontSize={15} fontWeight="700"
+              fill={TOPOLOGY_COLORS.site.text}>{truncate(site.name, 28)}</text>
+            <text x={site.x + site.width - 14} y={site.y + 22}
+              textAnchor="end" fontFamily="IBM Plex Mono, monospace" fontSize={9}
+              fill={TOPOLOGY_COLORS.site.text} opacity={0.6}>{site.location}</text>
+
+            {/* Domains within site */}
+            {site.domains.map((dom) => {
+              const dc = TOPOLOGY_COLORS[dom.type === "mgmt" ? "mgmt" : "workload"];
+              return (
+                <g key={`${site.id}-${dom.id}`}>
+                  {/* Domain container */}
+                  <rect x={dom.x} y={site.y + dom.y} width={dom.width} height={dom.height}
+                    rx={6} fill={dc.fill} stroke={dc.stroke} strokeWidth={1.2} />
+                  {/* Domain header */}
+                  <text x={dom.x + 10} y={site.y + dom.y + 18}
+                    fontFamily="Inter, system-ui, sans-serif" fontSize={11} fontWeight="600"
+                    fill={dc.text}>{truncate(dom.name, 32)}</text>
+                  {dom.placement === "stretched" && (
+                    <text x={dom.x + dom.width - 10} y={site.y + dom.y + 18}
+                      textAnchor="end" fontFamily="IBM Plex Mono, monospace" fontSize={8}
+                      fill="#2563eb" fontWeight="500">↔ {dom.sharePct}%</text>
+                  )}
+
+                  {/* Clusters within domain */}
+                  {dom.clusters.map((clu) => {
+                    const cc = TOPOLOGY_COLORS.cluster;
+                    return (
+                      <g key={`${site.id}-${dom.id}-${clu.id}`}>
+                        <rect x={clu.x} y={site.y + clu.y} width={clu.width} height={clu.height}
+                          rx={4} fill={cc.fill} stroke={cc.stroke} strokeWidth={1} />
+                        {/* Cluster header */}
+                        <text x={clu.x + 8} y={site.y + clu.y + 16}
+                          fontFamily="Inter, system-ui, sans-serif" fontSize={11} fontWeight="600"
+                          fill={cc.text}>{truncate(clu.name, 26)}</text>
+                        <text x={clu.x + 8} y={site.y + clu.y + 30}
+                          fontFamily="IBM Plex Mono, monospace" fontSize={9}
+                          fill={cc.text} opacity={0.7}>
+                          Limit: {clu.limiter}
+                        </text>
+                        {/* Failover badge */}
+                        {clu.failover && (
+                          <g>
+                            <circle cx={clu.x + clu.width - 20} cy={site.y + clu.y + 16}
+                              r={5} fill={verdictColor(clu.failover.siteA.verdict)} />
+                            <circle cx={clu.x + clu.width - 8} cy={site.y + clu.y + 16}
+                              r={5} fill={verdictColor(clu.failover.siteB.verdict)} />
+                          </g>
+                        )}
+                        {/* Host badge */}
+                        <rect x={clu.x + 6} y={site.y + clu.y + PHYS_CLUSTER_HEADER_H - 8}
+                          width={clu.width - 12} height={PHYS_HOST_BADGE_H} rx={3}
+                          fill="white" stroke={cc.stroke} strokeWidth={0.6} opacity={0.9} />
+                        <text x={clu.x + 14} y={site.y + clu.y + PHYS_CLUSTER_HEADER_H + 8}
+                          fontFamily="IBM Plex Mono, monospace" fontSize={10}
+                          fill={cc.text} fontWeight="600">
+                          {clu.hostCount} hosts · {fmt(clu.cores)} cores · {(clu.rawTib || 0).toFixed(1)} TiB
+                        </text>
+                        {/* Appliance pills — single column, full name + resources */}
+                        {clu.appliances.map((app, ai) => {
+                          const ax = clu.x + PHYS_CLUSTER_PAD;
+                          const pillW = clu.width - PHYS_CLUSTER_PAD * 2;
+                          const ay = site.y + clu.y + PHYS_CLUSTER_HEADER_H + PHYS_HOST_BADGE_H + 4 +
+                            ai * (PHYS_APPLIANCE_H + PHYS_APPLIANCE_GAP);
+                          const ac = TOPOLOGY_COLORS.appliance;
+                          const movable = app.canMove && setFleet;
+                          const resText = `${app.vcpu}cpu ${app.ram}GB`;
+                          return (
+                            <g key={`app-${clu.id}-${ai}`}
+                              style={movable ? { cursor: "pointer" } : undefined}
+                              onClick={movable ? () => moveAppliance(app.instId, app.key, site.id) : undefined}>
+                              <rect x={ax} y={ay} width={pillW} height={PHYS_APPLIANCE_H}
+                                rx={3} fill={ac.fill} stroke={movable ? "#2563eb" : ac.stroke}
+                                strokeWidth={movable ? 1 : 0.8} />
+                              <text x={ax + 6} y={ay + 16}
+                                fontFamily="Inter, system-ui, sans-serif" fontSize={10} fontWeight="500"
+                                fill={ac.text}>{truncate(app.label, 26)}{app.count > 1 ? ` ×${app.count}` : ""}</text>
+                              <text x={ax + pillW - (movable ? 20 : 6)} y={ay + 16}
+                                textAnchor="end" fontFamily="IBM Plex Mono, monospace" fontSize={9}
+                                fill={ac.text} opacity={0.55}>{resText}</text>
+                              {movable && (
+                                <text x={ax + pillW - 6} y={ay + 16}
+                                  fontFamily="IBM Plex Mono, monospace" fontSize={10}
+                                  fill="#2563eb" textAnchor="end">→</text>
+                              )}
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </g>
+        ))}
+
+        {/* Witness boxes */}
+        {layout.witnesses.map((w) => {
+          const wc = TOPOLOGY_COLORS.witness;
+          return (
+            <g key={w.id}>
+              <rect x={w.x} y={w.y} width={w.width} height={w.height}
+                rx={4} fill={wc.fill} stroke={wc.stroke} strokeWidth={1.2}
+                strokeDasharray="4 2" />
+              <text x={w.x + 10} y={w.y + 20}
+                fontFamily="Inter, system-ui, sans-serif" fontSize={11} fontWeight="600"
+                fill={wc.text}>⬦ {w.label}</text>
+              <text x={w.x + 10} y={w.y + 36}
+                fontFamily="IBM Plex Mono, monospace" fontSize={9}
+                fill={wc.text} opacity={0.7}>
+                {w.size} · {w.instances} cluster{w.instances === 1 ? "" : "s"} · {w.instanceName}
+              </text>
+              {/* Connectors to sites */}
+              {w.siteIds.map((sId, si) => {
+                const s = layout.sites.find((ls) => ls.id === sId);
+                if (!s) return null;
+                const sx = s.x + s.width / 2;
+                const sy = s.y + s.height;
+                const wx = w.x + w.width / 2;
+                const wy = w.y;
+                return (
+                  <path key={`wc-${si}`}
+                    d={`M ${wx} ${wy} L ${wx} ${(wy + sy) / 2} L ${sx} ${(wy + sy) / 2} L ${sx} ${sy}`}
+                    stroke={wc.stroke} strokeWidth={1} strokeDasharray="4 2" fill="none" />
+                );
+              })}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DRAW.IO XML EXPORT
+// ─────────────────────────────────────────────────────────────────────────────
+function generateDrawioXml(layoutData, layoutType) {
+  let nextId = 2;
+  const id = () => nextId++;
+  const cells = [];
+
+  const styleStr = (opts) => Object.entries(opts).map(([k, v]) => `${k}=${v}`).join(";") + ";";
+
+  if (layoutType === "logical") {
+    // Logical layout: flat boxes and connectors
+    const idMap = {};
+    for (const box of layoutData.boxes) {
+      const cellId = id();
+      idMap[box.id] = cellId;
+      const tc = TOPOLOGY_COLORS[box.kind] || TOPOLOGY_COLORS.cluster;
+      const label = [
+        `<b>${escapeXml(box.label)}</b>`,
+        box.subtitle ? `<br/><font style="font-size:10px">${escapeXml(box.subtitle)}</font>` : "",
+        box.subtitle2 ? `<br/><font style="font-size:9px;opacity:0.6">${escapeXml(box.subtitle2)}</font>` : "",
+      ].join("");
+      const style = styleStr({
+        rounded: 1, whiteSpace: "wrap", html: 1,
+        fillColor: tc.fill, strokeColor: tc.stroke, fontColor: tc.text,
+        strokeWidth: box.kind === "witness" ? 1 : 1.5, arcSize: 8,
+        ...(box.kind === "witness" ? { dashed: 1, dashPattern: "4 2" } : {}),
+      });
+      cells.push(`    <mxCell id="${cellId}" value="${escapeXml(label)}" style="${style}" vertex="1" parent="1">
+      <mxGeometry x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" as="geometry"/>
+    </mxCell>`);
+    }
+    for (const conn of layoutData.connectors) {
+      const src = idMap[conn.from.id];
+      const tgt = idMap[conn.to.id];
+      if (!src || !tgt) continue;
+      const style = styleStr({
+        edgeStyle: "orthogonalEdgeStyle", strokeColor: "#94a3b8", strokeWidth: 1.2,
+      });
+      cells.push(`    <mxCell id="${id()}" style="${style}" edge="1" source="${src}" target="${tgt}" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>`);
+    }
+    for (const conn of (layoutData.stretchedConnectors || [])) {
+      const src = idMap[conn.from.id];
+      const tgt = idMap[conn.to.id];
+      if (!src || !tgt) continue;
+      const style = styleStr({
+        edgeStyle: "orthogonalEdgeStyle", strokeColor: "#2563eb", strokeWidth: 2,
+        dashed: 1, dashPattern: "6 3",
+      });
+      cells.push(`    <mxCell id="${id()}" style="${style}" edge="1" source="${src}" target="${tgt}" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>`);
+    }
+  } else {
+    // Physical layout: nested containers
+    const idMap = {};
+    for (const site of layoutData.sites) {
+      const siteId = id();
+      idMap[site.id] = siteId;
+      const sc = TOPOLOGY_COLORS.site;
+      const style = styleStr({
+        rounded: 1, whiteSpace: "wrap", html: 1, container: 1,
+        fillColor: sc.fill, strokeColor: sc.stroke, fontColor: sc.text,
+        strokeWidth: 2, arcSize: 4, verticalAlign: "top", fontStyle: 1, fontSize: 14,
+      });
+      cells.push(`    <mxCell id="${siteId}" value="${escapeXml(site.name + (site.location ? ' — ' + site.location : ''))}" style="${style}" vertex="1" parent="1">
+      <mxGeometry x="${site.x}" y="${site.y}" width="${site.width}" height="${site.height}" as="geometry"/>
+    </mxCell>`);
+
+      for (const dom of site.domains) {
+        const domCellId = id();
+        const dc = TOPOLOGY_COLORS[dom.type === "mgmt" ? "mgmt" : "workload"];
+        const domLabel = dom.name + (dom.placement === "stretched" ? ` (${dom.sharePct}%)` : "");
+        const dStyle = styleStr({
+          rounded: 1, whiteSpace: "wrap", html: 1, container: 1,
+          fillColor: dc.fill, strokeColor: dc.stroke, fontColor: dc.text,
+          strokeWidth: 1.2, arcSize: 4, verticalAlign: "top", fontSize: 11,
+        });
+        cells.push(`    <mxCell id="${domCellId}" value="${escapeXml(domLabel)}" style="${dStyle}" vertex="1" parent="${siteId}">
+      <mxGeometry x="${dom.x - site.x}" y="${dom.y}" width="${dom.width}" height="${dom.height}" as="geometry"/>
+    </mxCell>`);
+
+        for (const clu of dom.clusters) {
+          const cluCellId = id();
+          const cc = TOPOLOGY_COLORS.cluster;
+          const cluLabel = `<b>${escapeXml(clu.name)}</b><br/><font style="font-size:10px">${clu.hostCount} hosts · ${fmt(clu.cores)} cores · ${(clu.rawTib || 0).toFixed(1)} TiB</font><br/><font style="font-size:9px">Limit: ${escapeXml(clu.limiter)}</font>`;
+          const cStyle = styleStr({
+            rounded: 1, whiteSpace: "wrap", html: 1, container: 1,
+            fillColor: cc.fill, strokeColor: cc.stroke, fontColor: cc.text,
+            strokeWidth: 1, arcSize: 4, verticalAlign: "top", fontSize: 11,
+          });
+          cells.push(`    <mxCell id="${cluCellId}" value="${escapeXml(cluLabel)}" style="${cStyle}" vertex="1" parent="${domCellId}">
+      <mxGeometry x="${clu.x - dom.x}" y="${clu.y - dom.y}" width="${clu.width}" height="${clu.height}" as="geometry"/>
+    </mxCell>`);
+
+          for (const app of clu.appliances) {
+            const appId = id();
+            const ac = TOPOLOGY_COLORS.appliance;
+            const appLabel = app.label + (app.count > 1 ? ` ×${app.count}` : "");
+            const aStyle = styleStr({
+              rounded: 1, whiteSpace: "wrap", html: 1,
+              fillColor: ac.fill, strokeColor: ac.stroke, fontColor: ac.text,
+              strokeWidth: 0.8, fontSize: 8,
+            });
+            const ai = clu.appliances.indexOf(app);
+            const col = ai % 2;
+            const row = Math.floor(ai / 2);
+            const ax = 12 + col * 134;
+            const ay = 60 + row * 26;
+            cells.push(`    <mxCell id="${appId}" value="${escapeXml(appLabel)}" style="${aStyle}" vertex="1" parent="${cluCellId}">
+      <mxGeometry x="${ax}" y="${ay}" width="130" height="22" as="geometry"/>
+    </mxCell>`);
+          }
+        }
+      }
+    }
+
+    // Stretched bands as edges between sites
+    for (const band of layoutData.stretchedBands) {
+      const style = styleStr({
+        edgeStyle: "orthogonalEdgeStyle", strokeColor: "#2563eb", strokeWidth: 2,
+        dashed: 1, dashPattern: "8 4",
+      });
+      // Find the two site cells
+      const siteIds = layoutData.sites.filter((s) =>
+        s.domains.some((d) => d.id === band.domainId)
+      ).map((s) => idMap[s.id]).filter(Boolean);
+      if (siteIds.length === 2) {
+        cells.push(`    <mxCell id="${id()}" value="${escapeXml(band.label)}" style="${style}" edge="1" source="${siteIds[0]}" target="${siteIds[1]}" parent="1">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>`);
+      }
+    }
+
+    // Witness boxes
+    for (const w of layoutData.witnesses) {
+      const wId = id();
+      const wc = TOPOLOGY_COLORS.witness;
+      const wStyle = styleStr({
+        rounded: 1, whiteSpace: "wrap", html: 1,
+        fillColor: wc.fill, strokeColor: wc.stroke, fontColor: wc.text,
+        strokeWidth: 1.2, dashed: 1, dashPattern: "4 2", fontSize: 10,
+      });
+      cells.push(`    <mxCell id="${wId}" value="${escapeXml('⬦ ' + w.label)}" style="${wStyle}" vertex="1" parent="1">
+      <mxGeometry x="${w.x}" y="${w.y}" width="${w.width}" height="${w.height}" as="geometry"/>
+    </mxCell>`);
+    }
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+${cells.join("\n")}
+  </root>
+</mxGraphModel>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERMAID EXPORT
+// ─────────────────────────────────────────────────────────────────────────────
+function generateMermaidCode(layoutData, layoutType) {
+  const lines = [];
+  const san = sanitizeMermaidId;
+
+  if (layoutType === "logical") {
+    lines.push("flowchart LR");
+    const shapes = { site: "[[", instance: "[", mgmt: "(", workload: "(", cluster: "[", witness: ">" };
+    const closes = { site: "]]", instance: "]", mgmt: ")", workload: ")", cluster: "]", witness: "]" };
+
+    for (const box of layoutData.boxes) {
+      const nid = san(box.id);
+      const open = shapes[box.kind] || "[";
+      const close = closes[box.kind] || "]";
+      const parts = [box.label];
+      if (box.subtitle) parts.push(box.subtitle);
+      if (box.subtitle2) parts.push(box.subtitle2);
+      const label = `"${parts.join("\\n")}"`;
+      lines.push(`    ${nid}${open}${label}${close}`);
+    }
+    lines.push("");
+    for (const conn of layoutData.connectors) {
+      lines.push(`    ${san(conn.from.id)} --> ${san(conn.to.id)}`);
+    }
+    for (const conn of (layoutData.stretchedConnectors || [])) {
+      lines.push(`    ${san(conn.from.id)} -.-> ${san(conn.to.id)}`);
+    }
+  } else {
+    lines.push("flowchart TB");
+
+    for (const site of layoutData.sites) {
+      lines.push(`    subgraph ${san(site.id)}["${site.name} — ${site.location}"]`);
+      for (const dom of site.domains) {
+        const domId = san(site.id + "_" + dom.id);
+        lines.push(`        subgraph ${domId}["${dom.name}${dom.placement === 'stretched' ? ' ↔ ' + dom.sharePct + '%' : ''}"]`);
+        for (const clu of dom.clusters) {
+          const cluId = san(site.id + "_" + dom.id + "_" + clu.id);
+          const appList = clu.appliances.map((a) => a.label + (a.count > 1 ? ` ×${a.count}` : "")).join(", ");
+          const label = `${clu.name}\\n${clu.hostCount} hosts · ${fmt(clu.cores)} cores\\n${appList ? appList : ""}`;
+          lines.push(`            ${cluId}["${label}"]`);
+        }
+        lines.push("        end");
+      }
+      lines.push("    end");
+    }
+
+    // Stretched connections between matching domain subgraphs
+    for (const band of layoutData.stretchedBands) {
+      const sites = layoutData.sites.filter((s) => s.domains.some((d) => d.id === band.domainId));
+      if (sites.length === 2) {
+        const d0 = san(sites[0].id + "_" + band.domainId);
+        const d1 = san(sites[1].id + "_" + band.domainId);
+        lines.push(`    ${d0} -. "${band.label}" .-> ${d1}`);
+      }
+    }
+
+    // Witnesses
+    for (const w of layoutData.witnesses) {
+      const wid = san(w.id);
+      lines.push(`    ${wid}>"${w.label}\\n${w.size} · ${w.instances} cluster${w.instances === 1 ? '' : 's'}"]`);
+      for (const sId of w.siteIds) {
+        lines.push(`    ${wid} -.-> ${san(sId)}`);
+      }
+    }
+  }
+
+  // Color classes
+  lines.push("");
+  for (const [kind, col] of Object.entries(TOPOLOGY_COLORS)) {
+    lines.push(`    classDef ${kind} fill:${col.fill},stroke:${col.stroke},color:${col.text}`);
+  }
+
+  if (layoutType === "logical") {
+    for (const box of layoutData.boxes) {
+      lines.push(`    class ${san(box.id)} ${box.kind}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TOP-LEVEL COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 function VcfFleetSizer() {
@@ -3970,7 +4897,7 @@ function VcfFleetSizer() {
           </>
         ) : view === "topology" ? (
           <>
-            <TopologyView fleet={fleet} fleetResult={fleetResult} />
+            <TopologyView fleet={fleet} fleetResult={fleetResult} setFleet={setFleet} />
             <div className="mt-5">
               <FleetSummary fleet={fleet} fleetResult={fleetResult} />
             </div>
