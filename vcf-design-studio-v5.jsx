@@ -4209,19 +4209,13 @@ function computePhysicalLayout(fleet, fleetResult) {
   // Normalize: all sites same height, and matched stretched domains/clusters
   // share the same height so the layout is balanced across sites.
   if (sites.length > 1) {
-    const maxH = Math.max(...sites.map((s) => s.height));
-    sites.forEach((s) => { s.height = maxH; });
-
     // Equalize matched domain heights across sites
     const domIds = new Set();
     sites.forEach((s) => s.domains.forEach((d) => domIds.add(d.id)));
     for (const did of domIds) {
       const matches = sites.flatMap((s) => s.domains.filter((d) => d.id === did));
       if (matches.length > 1) {
-        const maxDH = Math.max(...matches.map((d) => d.height));
-        matches.forEach((d) => { d.height = maxDH; });
-
-        // Equalize matched cluster heights within those domains
+        // Equalize matched cluster heights first
         const maxClusters = Math.max(...matches.map((d) => d.clusters.length));
         for (let ci = 0; ci < maxClusters; ci++) {
           const cluMatches = matches.map((d) => d.clusters[ci]).filter(Boolean);
@@ -4230,8 +4224,34 @@ function computePhysicalLayout(fleet, fleetResult) {
             cluMatches.forEach((c) => { c.height = maxCH; });
           }
         }
+        // Recalc domain height from equalized clusters
+        matches.forEach((d) => {
+          let cy = PHYS_DOMAIN_PAD + PHYS_DOMAIN_HEADER_H;
+          d.clusters.forEach((c) => { c.relY = cy; cy += c.height + PHYS_CLUSTER_GAP; });
+          d.height = cy + PHYS_DOMAIN_PAD - PHYS_CLUSTER_GAP;
+        });
+        const maxDH = Math.max(...matches.map((d) => d.height));
+        matches.forEach((d) => { d.height = maxDH; });
       }
     }
+
+    // Re-flow domain y positions within each site after height equalization
+    sites.forEach((s) => {
+      let dy = PHYS_SITE_PAD + PHYS_SITE_HEADER_H;
+      s.domains.forEach((d) => {
+        d.y = dy;
+        // Update absolute cluster positions
+        d.clusters.forEach((c) => {
+          c.y = dy + c.relY;
+        });
+        dy += d.height + PHYS_DOMAIN_GAP;
+      });
+      s.height = Math.max(dy + PHYS_SITE_PAD - PHYS_DOMAIN_GAP, 120);
+    });
+
+    // Equalize site heights
+    const maxH = Math.max(...sites.map((s) => s.height));
+    sites.forEach((s) => { s.height = maxH; });
   }
 
   // Build stretched bands connecting matching domains across sites
