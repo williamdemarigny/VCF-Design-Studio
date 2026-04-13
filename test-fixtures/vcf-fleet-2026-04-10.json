@@ -1,0 +1,322 @@
+{
+  "version": "vcf-sizer-v3",
+  "exportedAt": "2026-04-10T21:11:18.143Z",
+  "fleet": {
+    "id": "fleet-pm9qs2ignctg",
+    "name": "Production Fleet",
+    "sites": [
+      {
+        "id": "site-wgp7vo7inctg",
+        "name": "WH200",
+        "location": "SAT",
+        "instances": [
+          {
+            "id": "inst-uzbfy6u0nctg",
+            "name": "vcf-instance-01",
+            "deploymentProfile": "ha",
+            "stretched": true,
+            "secondarySiteId": "site-d0dcic9ndmte",
+            "witnessSite": {
+              "name": "Witness Site",
+              "location": ""
+            },
+            "witnessSize": "Medium",
+            "domains": [
+              {
+                "id": "dom-clu3umminctg",
+                "type": "mgmt",
+                "name": "Management Domain",
+                "placement": "stretched",
+                "hostSplitPct": 50,
+                "clusters": [
+                  {
+                    "id": "clu-auqllal8nctg",
+                    "name": "mgmt-cluster-01",
+                    "isDefault": true,
+                    "host": {
+                      "cpuQty": 2,
+                      "coresPerCpu": 16,
+                      "ramGb": 256,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "cpuOversub": 2,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "workload": {
+                      "vmCount": 0,
+                      "vcpuPerVm": 4,
+                      "ramPerVm": 16,
+                      "diskPerVm": 100
+                    },
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "size": "Medium",
+                        "instances": 1,
+                        "key": "rphga7dsnctg"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "xc17nxgknctg"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "size": "Large",
+                        "instances": 2,
+                        "key": "8csdoiarnctg"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "size": "Default",
+                        "instances": 1,
+                        "key": "tp1v678mnctg"
+                      },
+                      {
+                        "id": "fleetMgr",
+                        "size": "Default",
+                        "instances": 1,
+                        "key": "nmz7pmcfnctg"
+                      },
+                      {
+                        "id": "vcls",
+                        "size": "Default",
+                        "instances": 2,
+                        "key": "r4294754nctg"
+                      },
+                      {
+                        "id": "vcfOps",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "rknk98l4nctg"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "size": "Medium",
+                        "instances": 1,
+                        "key": "4u9h3f8mnctg"
+                      },
+                      {
+                        "id": "vcfAuto",
+                        "size": "Small",
+                        "instances": 1,
+                        "key": "3nmwgvsmnctg"
+                      },
+                      {
+                        "id": "vcfOpsLogs",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "gpojsnswnctg"
+                      },
+                      {
+                        "id": "vcfOpsNet",
+                        "size": "Large",
+                        "instances": 3,
+                        "key": "pgcermewnctg"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "size": "Large",
+                        "instances": 1,
+                        "key": "ax4netmmnctg"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "x9i8osrmnctg"
+                      },
+                      {
+                        "id": "aviLb",
+                        "size": "Small",
+                        "instances": 3,
+                        "key": "nx22ffnknctg"
+                      },
+                      {
+                        "id": "ssp",
+                        "size": "Medium",
+                        "instances": 1,
+                        "key": "3m5luy4afoyr"
+                      }
+                    ],
+                    "storage": {
+                      "policy": "raid5_2p1",
+                      "dedup": 1,
+                      "compression": 1,
+                      "swapPct": 100,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "externalStorage": true,
+                      "externalArrayTib": 0
+                    },
+                    "tiering": {
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "eligibilityPct": 70,
+                      "tierDriveSizeTb": 7.68
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "site-d0dcic9ndmte",
+        "name": "ARS",
+        "location": "SAT",
+        "instances": [
+          {
+            "id": "inst-70se5hildmte",
+            "name": "vcf-instance-01",
+            "deploymentProfile": "ha",
+            "stretched": true,
+            "secondarySiteId": "site-wgp7vo7inctg",
+            "witnessSite": {
+              "name": "Witness Site",
+              "location": ""
+            },
+            "witnessSize": "Medium",
+            "domains": [
+              {
+                "id": "dom-qariqid6dmte",
+                "type": "mgmt",
+                "name": "Management Domain",
+                "placement": "stretched",
+                "hostSplitPct": 50,
+                "clusters": [
+                  {
+                    "id": "clu-zh3cgktrdmte",
+                    "name": "mgmt-cluster-01",
+                    "isDefault": true,
+                    "host": {
+                      "cpuQty": 2,
+                      "coresPerCpu": 16,
+                      "ramGb": 256,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "cpuOversub": 2,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "workload": {
+                      "vmCount": 0,
+                      "vcpuPerVm": 4,
+                      "ramPerVm": 16,
+                      "diskPerVm": 100
+                    },
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "size": "Medium",
+                        "instances": 1,
+                        "key": "zr0sjbridmte"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "lwchty96dmte"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "size": "Large",
+                        "instances": 2,
+                        "key": "yqg9p0m5dmte"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "size": "Default",
+                        "instances": 1,
+                        "key": "c9080sjydmte"
+                      },
+                      {
+                        "id": "fleetMgr",
+                        "size": "Default",
+                        "instances": 1,
+                        "key": "y63tl84pdmte"
+                      },
+                      {
+                        "id": "vcls",
+                        "size": "Default",
+                        "instances": 2,
+                        "key": "6ao2zd6wdmte"
+                      },
+                      {
+                        "id": "vcfOps",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "j1kvrts0dmte"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "size": "Medium",
+                        "instances": 1,
+                        "key": "fuun76tldmte"
+                      },
+                      {
+                        "id": "vcfAuto",
+                        "size": "Small",
+                        "instances": 1,
+                        "key": "y3v6fao3dmte"
+                      },
+                      {
+                        "id": "vcfOpsLogs",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "j100ag2idmte"
+                      },
+                      {
+                        "id": "vcfOpsNet",
+                        "size": "Large",
+                        "instances": 3,
+                        "key": "nuelvmpfdmte"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "size": "Large",
+                        "instances": 1,
+                        "key": "qev4kycwdmte"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "size": "Medium",
+                        "instances": 3,
+                        "key": "okdzf535dmte"
+                      },
+                      {
+                        "id": "aviLb",
+                        "size": "Small",
+                        "instances": 3,
+                        "key": "nci6umlfdmte"
+                      }
+                    ],
+                    "storage": {
+                      "policy": "raid5_2p1",
+                      "dedup": 1,
+                      "compression": 1,
+                      "swapPct": 100,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "externalStorage": true,
+                      "externalArrayTib": 0
+                    },
+                    "tiering": {
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "eligibilityPct": 70,
+                      "tierDriveSizeTb": 7.68
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
