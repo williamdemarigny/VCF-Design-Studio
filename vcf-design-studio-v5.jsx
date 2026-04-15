@@ -489,6 +489,7 @@ function cryptoKey() {
 const baseHostSpec = () => ({
   cpuQty: 2,
   coresPerCpu: 16,
+  hyperthreadingEnabled: false,
   ramGb: 1024,
   nvmeQty: 6,
   nvmeSizeTb: 7.68,
@@ -866,8 +867,17 @@ function migrateV3ToV5(v3Fleet) {
 function migrateFleet(raw) {
   if (!raw) return newFleet();
   const version = raw.version || "vcf-sizer-v3";
-  const fleet = raw.fleet || raw;
-  if (version === "vcf-sizer-v5") {
+  let fleet = raw.fleet || raw;
+  // Run older versions through their upgrade paths first, then fall through
+  // to the v5 normalization pass so that newly-added host fields
+  // (e.g. hyperthreadingEnabled) are populated regardless of source version.
+  if (version === "vcf-sizer-v2") {
+    const v3 = migrateV2ToV3(fleet);
+    fleet = migrateV3ToV5(v3.fleet || v3);
+  } else if (version !== "vcf-sizer-v5") {
+    fleet = migrateV3ToV5(fleet);
+  }
+  {
     return {
       id: fleet.id || "fleet-" + cryptoKey(),
       name: fleet.name || "Fleet",
@@ -916,19 +926,24 @@ function migrateFleet(raw) {
                 componentsClusterId = mgmtFirstCluId;
               }
             }
+            // Normalize each cluster's host spec to guarantee fields added in
+            // later v5 revisions (e.g. hyperthreadingEnabled) are present on
+            // imports that predate them. Defaults preserve legacy math.
+            const clusters = (d.clusters || []).map((c) => ({
+              ...c,
+              host: {
+                ...(c.host || {}),
+                hyperthreadingEnabled: c.host?.hyperthreadingEnabled ?? false,
+              },
+            }));
             // Drop the legacy componentsLocation field on its way out.
             const { componentsLocation: _legacy, ...rest } = d;
-            return { ...rest, localSiteId, wldStack, componentsClusterId };
+            return { ...rest, localSiteId, wldStack, componentsClusterId, clusters };
           }),
         };
       }),
     };
   }
-  if (version === "vcf-sizer-v2") {
-    const v3 = migrateV2ToV3(fleet);
-    return migrateV3ToV5(v3.fleet || v3);
-  }
-  return migrateV3ToV5(fleet);
 }
 
 
@@ -952,10 +967,11 @@ function stackTotals(stack) {
 
 function sizeHost(host) {
   const cores = host.cpuQty * host.coresPerCpu;
+  const threads = host.hyperthreadingEnabled ? cores * 2 : cores;
   const rawGb = host.nvmeQty * host.nvmeSizeTb * 1000;
-  const usableVcpu = cores * host.cpuOversub * (1 - host.reservePct / 100);
+  const usableVcpu = threads * host.cpuOversub * (1 - host.reservePct / 100);
   const usableRam = host.ramGb * host.ramOversub * (1 - host.reservePct / 100);
-  return { cores, rawGb, usableVcpu, usableRam };
+  return { cores, threads, rawGb, usableVcpu, usableRam };
 }
 
 function applyTiering(host, hostBase, demandRamGb, tiering) {
@@ -1035,6 +1051,11 @@ function sizeCluster(cluster, extraStack = []) {
   const finalHosts = Math.max(...candidates.map((c) => c.val));
   const limiter = candidates.find((c) => c.val === finalHosts).name;
 
+  const vsanMinWarning =
+    !cluster.storage.externalStorage &&
+    finalHosts === 3 &&
+    policy.minHosts <= 3;
+
   return {
     host: h,
     demand: { vcpu: demandVcpu, ram: demandRam, disk: demandDisk },
@@ -1048,6 +1069,7 @@ function sizeCluster(cluster, extraStack = []) {
       ? 0
       : finalHosts * cluster.host.nvmeQty * cluster.host.nvmeSizeTb * TB_TO_TIB,
     externalStorage: cluster.storage.externalStorage,
+    vsanMinWarning,
   };
 }
 
@@ -2179,6 +2201,21 @@ function ClusterCard({ cluster, onChange, onRemove, canRemove, result, isMgmtClu
               <NumField label="RAM Oversub" suffix="×" step={0.1} value={cluster.host.ramOversub} onChange={(v) => updateHost({ ramOversub: v })} />
               <NumField label="Reserve" suffix="%" value={cluster.host.reservePct} onChange={(v) => updateHost({ reservePct: v })} />
             </div>
+            <label
+              className="mt-2 flex items-start gap-2 text-[11px] text-slate-600 cursor-pointer select-none"
+              title="When enabled, each physical core provides 2 logical threads (Intel Hyper-Threading / AMD SMT). Increases vCPU sizing capacity only — licensed cores stay based on physical cores to match VCF per-core licensing."
+            >
+              <input
+                type="checkbox"
+                checked={!!cluster.host.hyperthreadingEnabled}
+                onChange={(e) => updateHost({ hyperthreadingEnabled: e.target.checked })}
+                className="mt-0.5 accent-blue-600"
+              />
+              <span>
+                <span className="font-semibold">Hyperthreading (SMT)</span> — model 2 logical threads per
+                physical core for vCPU sizing. Licensed cores are unaffected.
+              </span>
+            </label>
           </Section>
 
           {!isMgmtCluster && (
@@ -2470,6 +2507,26 @@ function ClusterCard({ cluster, onChange, onRemove, canRemove, result, isMgmtClu
               </div>
             </div>
 
+            {result.vsanMinWarning && (
+              <div className="bg-amber-50 border border-amber-300 rounded p-3 mb-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-700 font-mono text-sm leading-none mt-0.5">⚠</span>
+                  <div className="flex-1">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-amber-800 font-mono font-semibold mb-1">
+                      Recommended: 4-node minimum for vSAN
+                    </div>
+                    <p className="text-[11px] text-amber-800 font-mono leading-snug">
+                      A 3-node vSAN cluster meets the architectural minimum but cannot auto-heal after a
+                      host failure — rebuild requires a replacement host before redundancy is restored. A
+                      4th node provides a spare fault domain, enabling automatic re-protection after
+                      failures or during maintenance. Consider setting a Host Override of 4 below, or
+                      choosing a storage policy with a higher minimum.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Manual host-count override — adds a "Manual" floor that the
                 sizing engine compares against the computed architectural
                 minimum. Lets the user raise finalHosts (e.g. to survive
@@ -2528,7 +2585,14 @@ function ClusterCard({ cluster, onChange, onRemove, canRemove, result, isMgmtClu
 
           <Section title="Per-Host Capacity">
             <div className="text-xs font-mono text-slate-600 space-y-1">
-              <Row k="Cores"        v={fmt(result.host.cores)} />
+              <Row
+                k="Cores"
+                v={
+                  cluster.host.hyperthreadingEnabled
+                    ? `${fmt(result.host.cores)} / ${fmt(result.host.threads)} threads`
+                    : fmt(result.host.cores)
+                }
+              />
               <Row k="Usable vCPU"  v={fmt(result.host.usableVcpu, 1)} />
               <Row k="Usable RAM"   v={`${fmt(result.host.usableRam, 0)} GB`} />
               {cluster.tiering.enabled && (

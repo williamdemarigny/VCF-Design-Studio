@@ -16,6 +16,8 @@ client-side. No server, no `npm install`, no build toolchain.
 
 - Design multi-site VCF 9 fleets with configurable hardware per cluster
 - Size management and workload domains against CPU, memory, and storage constraints
+- Toggle per-cluster hyperthreading/SMT to model logical-thread-based CPU capacity
+- Surface a recommendation when a vSAN cluster resolves to the 3-host minimum
 - Model stretched clusters spanning two sites with configurable host-split ratios
 - Compute per-cluster host counts, raw storage, and licensed cores
 - Analyze failover capacity for stretched deployments (green / yellow / red verdicts)
@@ -34,7 +36,7 @@ Fleet
         ├── placement   — "local" (pinned to one site) or "stretched"
         ├── hostSplitPct — % of hosts at siteIds[0] when stretched
         └── clusters[]
-            ├── host spec      — CPUs, cores, RAM, NVMe drives
+            ├── host spec      — CPUs, cores, hyperthreading, RAM, NVMe drives
             ├── workload       — VM count, vCPU/RAM/disk per VM
             ├── infraStack[]   — appliances hosted on this cluster
             ├── storage policy — RAID/Mirror, dedup, compression, reserves
@@ -93,14 +95,21 @@ management appliances are deployed and how many nodes each gets:
 Each cluster defines its own host hardware spec:
 
 ```
-cores       = cpuQty × coresPerCpu
+cores       = cpuQty × coresPerCpu                         // physical
+threads     = hyperthreadingEnabled ? cores × 2 : cores    // logical
 rawGb       = nvmeQty × nvmeSizeTb × 1000
-usableVcpu  = cores × cpuOversub × (1 - reservePct / 100)
-usableRam   = ramGb × ramOversub × (1 - reservePct / 100)
+usableVcpu  = threads × cpuOversub × (1 - reservePct / 100)
+usableRam   = ramGb   × ramOversub × (1 - reservePct / 100)
 ```
 
+Hyperthreading (Intel HT / AMD SMT) affects **vCPU sizing capacity only**.
+`licensedCores` stays based on physical cores to match VCF per-core
+licensing. A dual-socket 16-core host reports 32 cores / 64 threads with
+HT enabled; licensing is still computed against the 32 physical cores.
+
 Default host: 2 × 16-core CPUs, 1024 GB RAM, 6 × 7.68 TB NVMe,
-2:1 CPU overcommit, 1:1 RAM overcommit, 30% reserve.
+2:1 CPU overcommit, 1:1 RAM overcommit, 30% reserve, hyperthreading
+disabled (preserves math for configs imported from earlier versions).
 
 ### Storage Pipeline
 
@@ -147,7 +156,10 @@ finalHosts    = max(cpuHosts, ramHosts, storageHosts, policyMin, manualFloor)
 ```
 
 The **limiter** label shown in the UI indicates which floor determined the
-host count (CPU, Memory, Storage, Policy, or Manual).
+host count (CPU, Memory, Storage, Policy, or Manual). When a vSAN cluster
+resolves to exactly 3 hosts, the UI renders an informational warning
+recommending 4 nodes for auto-healing (see **vSAN Protection Policies**
+below).
 
 ### vSAN Protection Policies
 
@@ -162,6 +174,15 @@ host count (CPU, Memory, Storage, Policy, or Manual).
 
 When external storage is enabled on a cluster, vSAN storage math is skipped
 and `rawTib = 0` for that cluster.
+
+**3-node vSAN caution.** Policies with a 3-host minimum (RAID-5 2+1,
+Mirror FTT=1) meet the architectural minimum but cannot auto-heal after a
+host failure — rebuild requires replacement hardware before redundancy is
+restored. 4 hosts provide a spare fault domain and enable automatic
+re-protection of data after failures or during maintenance. The UI
+surfaces a warning on any vSAN cluster that resolves to exactly 3 hosts.
+To lift the floor without changing the policy, set a Host Override of 4
+on the cluster.
 
 ### vSAN Licensing
 
