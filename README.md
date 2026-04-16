@@ -458,8 +458,6 @@ so `grep -r "VCF-INV-" tests/` produces a complete coverage matrix.
   catalog of VCF 9.0 placement rules, fleet topologies, and invariants.
   Engine `APPLIANCE_DB` ids and scopes are the stable contract against
   this doc.
-- [TESTING-PLAN.md](TESTING-PLAN.md) — test strategy, phase history, and
-  rule-ID coverage matrix.
 - [FEATURE-COMPLETENESS.md](FEATURE-COMPLETENESS.md) — gap analysis between
   research-doc capabilities and studio features; all items ✅ shipped.
 
