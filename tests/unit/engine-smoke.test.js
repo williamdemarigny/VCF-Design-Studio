@@ -11,7 +11,7 @@ const EXPECTED_SYMBOLS = [
   "newCluster", "newMgmtCluster", "newWorkloadCluster",
   "newMgmtDomain", "newWorkloadDomain", "newInstance", "newSite", "newFleet",
   "buildDefaultPlacement", "ensurePlacement",
-  "getInitialInstance", "isInitialInstance", "stackForInstance",
+  "getInitialInstance", "isInitialInstance", "getHostSplitPct", "stackForInstance",
   "promoteToInitial", "inferDeploymentPathway", "inferFederationEnabled",
   "SSO_MODES", "inferSsoMode", "ssoInstancesPerBroker", "SSO_INSTANCES_PER_BROKER_LIMIT",
   "DR_POSTURES", "DR_REPLICATED_COMPONENTS", "DR_BACKUP_COMPONENTS", "isWarmStandby", "countActivePerFleetEntries",

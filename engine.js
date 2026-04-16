@@ -482,6 +482,13 @@ function isInitialInstance(fleet, instance) {
   return !!initial && instance && initial.id === instance.id;
 }
 
+// Read `.hostSplitPct` from a stretched-domain-like object, defaulting to 50
+// (even split) when unset or non-numeric. Pre-v5 data sometimes omits this
+// field on local domains that were later promoted to stretched.
+function getHostSplitPct(x) {
+  return typeof x?.hostSplitPct === "number" ? x.hostSplitPct : 50;
+}
+
 // Return the mgmt-stack entries appropriate for `instance` given its profile.
 // Initial instance gets the full profile stack; subsequent instances drop any
 // appliance whose APPLIANCE_DB entry has scope === "per-fleet".
@@ -1320,7 +1327,7 @@ function liftV3Instance(v3Inst, siteIds) {
       return {
         ...rest,
         placement,
-        hostSplitPct: typeof d.hostSplitPct === "number" ? d.hostSplitPct : 50,
+        hostSplitPct: getHostSplitPct(d),
         localSiteId,
         wldStack,
         componentsClusterId,
@@ -1651,7 +1658,7 @@ function sizeCluster(cluster, extraStack = []) {
 // can't survive 50/50 produces two different rollups.
 // ─────────────────────────────────────────────────────────────────────────────
 function analyzeStretchedFailover(cluster, result, hostSplitPct) {
-  const pct = typeof hostSplitPct === "number" ? hostSplitPct : 50;
+  const pct = getHostSplitPct({ hostSplitPct });
   const full = result.finalHosts;
   const hostsA = Math.max(0, Math.ceil(full * (pct / 100)));
   const hostsB = Math.max(0, full - hostsA);
@@ -1904,7 +1911,7 @@ function projectInstanceOntoSite(instanceResult, siteId) {
       });
       continue;
     }
-    const pct = typeof domain.hostSplitPct === "number" ? domain.hostSplitPct : 50;
+    const pct = getHostSplitPct(domain);
     const sharePct = isPrimary ? pct : 100 - pct;
     const frac = sharePct / 100;
     projectedDomains.push({
@@ -1980,6 +1987,6 @@ function sizeFleet(fleet) {
 // ─────────────────────────────────────────────────────────────────────────────
 // UMD-style export — attach to window (browser) and module.exports (Node).
 // ─────────────────────────────────────────────────────────────────────────────
-const VcfEngine = { APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS, POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB, recommendVcenterSize, recommendNsxSize, cryptoKey, baseHostSpec, baseStorageSettings, baseTiering, newCluster, newMgmtCluster, newWorkloadCluster, newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet, buildDefaultPlacement, ensurePlacement, getInitialInstance, isInitialInstance, stackForInstance, promoteToInitial, inferDeploymentPathway, inferFederationEnabled, SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT, DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries, T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways, EDGE_DEPLOYMENT_MODELS, migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance, migrateV3ToV5, migrateFleet, stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster, analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance, projectInstanceOntoSite, sizeFleet };
+const VcfEngine = { APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS, POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB, recommendVcenterSize, recommendNsxSize, cryptoKey, baseHostSpec, baseStorageSettings, baseTiering, newCluster, newMgmtCluster, newWorkloadCluster, newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet, buildDefaultPlacement, ensurePlacement, getInitialInstance, isInitialInstance, getHostSplitPct, stackForInstance, promoteToInitial, inferDeploymentPathway, inferFederationEnabled, SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT, DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries, T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways, EDGE_DEPLOYMENT_MODELS, migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance, migrateV3ToV5, migrateFleet, stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster, analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance, projectInstanceOntoSite, sizeFleet };
 if (typeof window !== "undefined") { window.VcfEngine = VcfEngine; }
 if (typeof module !== "undefined" && module.exports) { module.exports = VcfEngine; }

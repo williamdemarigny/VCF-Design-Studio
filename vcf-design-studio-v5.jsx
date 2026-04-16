@@ -32,7 +32,7 @@ const {
   newCluster, newMgmtCluster, newWorkloadCluster,
   newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet,
   buildDefaultPlacement, ensurePlacement,
-  getInitialInstance, isInitialInstance, stackForInstance,
+  getInitialInstance, isInitialInstance, getHostSplitPct, stackForInstance,
   promoteToInitial, inferDeploymentPathway, inferFederationEnabled,
   SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT,
   DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries,
@@ -1809,7 +1809,7 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
         return {
           ...d,
           placement: "stretched",
-          hostSplitPct: typeof d.hostSplitPct === "number" ? d.hostSplitPct : 50,
+          hostSplitPct: getHostSplitPct(d),
           localSiteId: null,
         };
       }
@@ -1835,7 +1835,7 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
     if (ids.length !== 2) return;
     const nextDomains = instance.domains.map((d) => {
       if (d.placement !== "stretched") return d;
-      const pct = typeof d.hostSplitPct === "number" ? d.hostSplitPct : 50;
+      const pct = getHostSplitPct(d);
       return { ...d, hostSplitPct: 100 - pct };
     });
     onChange({ ...instance, siteIds: [ids[1], ids[0]], domains: nextDomains });
@@ -3221,7 +3221,7 @@ function computePhysicalLayout(fleet, fleetResult) {
         // Stretched domain appears in both sites
         inst.siteIds.forEach((sId) => {
           if (siteDomains[sId]) {
-            const pct = typeof dom.hostSplitPct === "number" ? dom.hostSplitPct : 50;
+            const pct = getHostSplitPct(dom);
             const sharePct = sId === inst.siteIds[0] ? pct : 100 - pct;
             siteDomains[sId].push({ dom, dr, inst, ir, sharePct, stretched: true });
           }
@@ -3307,7 +3307,7 @@ function computePhysicalLayout(fleet, fleetResult) {
         const full = cr.finalHosts || 0;
         let hostsHere = full;
         if (stretched) {
-          const pct = typeof dom.hostSplitPct === "number" ? dom.hostSplitPct : 50;
+          const pct = getHostSplitPct(dom);
           const primaryHosts = Math.ceil(full * (pct / 100));
           hostsHere = sharePct === pct ? primaryHosts : full - primaryHosts;
         }
@@ -3436,7 +3436,7 @@ function computePhysicalLayout(fleet, fleetResult) {
     const d0 = s0.domains.find((d) => d.id === pair.domId);
     const d1 = s1.domains.find((d) => d.id === pair.domId);
     if (!d0 || !d1) return;
-    const pct = typeof pair.hostSplitPct === "number" ? pair.hostSplitPct : 50;
+    const pct = getHostSplitPct(pair);
     stretchedBands.push({
       domainId: pair.domId,
       label: `Stretched ${pct}/${100 - pct}`,
