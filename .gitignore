@@ -5,3 +5,8 @@ node_modules/
 .idea/
 dist/
 build/
+.verify-html.tmp
+coverage/
+.vitest-cache/
+playwright-report/
+test-results/

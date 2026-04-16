@@ -1,0 +1,195 @@
+{
+  "version": "vcf-sizer-v5",
+  "exportedAt": "2026-04-15T12:00:00.000Z",
+  "fleet": {
+    "id": "fleet-0001",
+    "name": "T0 Stateful A/A (Day-2 config required)",
+    "deploymentPathway": "greenfield",
+    "federationEnabled": false,
+    "ssoMode": "embedded",
+    "ssoBrokers": [],
+    "ssoFleetServicesBrokerId": null,
+    "sites": [
+      {
+        "id": "site-0001",
+        "name": "Primary Site",
+        "location": "",
+        "region": "",
+        "siteRole": ""
+      }
+    ],
+    "instances": [
+      {
+        "id": "inst-0001",
+        "name": "vcf-instance-01",
+        "deploymentProfile": "ha",
+        "siteIds": [
+          "site-0001"
+        ],
+        "witnessEnabled": false,
+        "witnessSize": "Medium",
+        "witnessSite": {
+          "name": "Witness Site",
+          "location": ""
+        },
+        "witnessSiteId": null,
+        "drPosture": "active",
+        "drPairedInstanceId": null,
+        "domains": [
+          {
+            "id": "dom-0001",
+            "type": "mgmt",
+            "name": "Management Domain",
+            "placement": "local",
+            "hostSplitPct": 50,
+            "localSiteId": "site-0001",
+            "clusters": [
+              {
+                "id": "clu-0001",
+                "name": "mgmt-cluster-01",
+                "isDefault": true,
+                "host": {
+                  "cpuQty": 2,
+                  "coresPerCpu": 16,
+                  "hyperthreadingEnabled": false,
+                  "ramGb": 1024,
+                  "nvmeQty": 6,
+                  "nvmeSizeTb": 7.68,
+                  "cpuOversub": 2,
+                  "ramOversub": 1,
+                  "reservePct": 30
+                },
+                "workload": {
+                  "vmCount": 0,
+                  "vcpuPerVm": 4,
+                  "ramPerVm": 16,
+                  "diskPerVm": 100
+                },
+                "infraStack": [
+                  {
+                    "id": "vcenter",
+                    "size": "Medium",
+                    "instances": 1,
+                    "key": "key-0001"
+                  },
+                  {
+                    "id": "nsxMgr",
+                    "size": "Medium",
+                    "instances": 3,
+                    "key": "key-0002"
+                  },
+                  {
+                    "id": "sddcMgr",
+                    "size": "Default",
+                    "instances": 1,
+                    "key": "key-0003"
+                  },
+                  {
+                    "id": "fleetMgr",
+                    "size": "Default",
+                    "instances": 1,
+                    "key": "key-0004"
+                  },
+                  {
+                    "id": "vcls",
+                    "size": "Default",
+                    "instances": 2,
+                    "key": "key-0005"
+                  },
+                  {
+                    "id": "vcfOps",
+                    "size": "Medium",
+                    "instances": 3,
+                    "key": "key-0006"
+                  },
+                  {
+                    "id": "vcfOpsCollector",
+                    "size": "Medium",
+                    "instances": 1,
+                    "key": "key-0007"
+                  },
+                  {
+                    "id": "vcfAuto",
+                    "size": "Small",
+                    "instances": 1,
+                    "key": "key-0008"
+                  },
+                  {
+                    "id": "vcfOpsLogs",
+                    "size": "Medium",
+                    "instances": 3,
+                    "key": "key-0009"
+                  },
+                  {
+                    "id": "vcfOpsNet",
+                    "size": "Large",
+                    "instances": 3,
+                    "key": "key-0010"
+                  },
+                  {
+                    "id": "vcfOpsNetCollector",
+                    "size": "Large",
+                    "instances": 1,
+                    "key": "key-0011"
+                  },
+                  {
+                    "id": "identityBroker",
+                    "size": "Medium",
+                    "instances": 3,
+                    "key": "key-0012"
+                  },
+                  {
+                    "id": "aviLb",
+                    "size": "Small",
+                    "instances": 3,
+                    "key": "key-0013"
+                  },
+                  {
+                    "id": "nsxEdge",
+                    "size": "Large",
+                    "instances": 4,
+                    "key": "key-0014"
+                  }
+                ],
+                "storage": {
+                  "policy": "raid5_2p1",
+                  "dedup": 1,
+                  "compression": 1,
+                  "swapPct": 100,
+                  "freePct": 25,
+                  "growthPct": 15,
+                  "externalStorage": false,
+                  "externalArrayTib": 0
+                },
+                "tiering": {
+                  "enabled": false,
+                  "nvmePct": 100,
+                  "eligibilityPct": 70,
+                  "tierDriveSizeTb": 7.68
+                },
+                "hostOverride": 0,
+                "t0Gateways": [
+                  {
+                    "id": "t0-dgerjbr8pe32",
+                    "name": "t0-stateful",
+                    "haMode": "active-active",
+                    "edgeNodeKeys": [
+                      "edge-saa-1"
+                    ],
+                    "uplinksPerEdge": [],
+                    "stateful": true,
+                    "bgpEnabled": true,
+                    "asn": 65000,
+                    "featureRequirements": []
+                  }
+                ],
+                "preExisting": false,
+                "edgeDeploymentModel": null
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

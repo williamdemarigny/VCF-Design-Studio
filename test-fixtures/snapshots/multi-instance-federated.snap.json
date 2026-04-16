@@ -1,0 +1,1054 @@
+{
+  "addonTib": 99.0976,
+  "entitlementTib": 320,
+  "fleetRawTib": 419.0976,
+  "instanceResults": [
+    {
+      "domainResults": [
+        {
+          "clusterResults": [
+            {
+              "demand": {
+                "disk": 12879,
+                "ram": 914.25,
+                "vcpu": 254
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 6,
+              "floors": {
+                "cpuHosts": 6,
+                "manualOverride": 0,
+                "policyMin": 3,
+                "ramHosts": 2,
+                "storageHosts": 2
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 192,
+              "limiter": "Compute",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 13793.25,
+                "pf": 1.5,
+                "protectedGb": 20689.875,
+                "swapGb": 914.25,
+                "totalReqGb": 29741.695312,
+                "vmCapGb": 12879,
+                "withFreeGb": 25862.34375
+              },
+              "rawTib": 251.45856,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 914.25
+              },
+              "vsanMinWarning": false
+            }
+          ],
+          "totalCores": 192,
+          "totalHosts": 6,
+          "totalRawTib": 251.45856
+        }
+      ],
+      "sharedStack": [
+        {
+          "id": "vcenter",
+          "instances": 1,
+          "key": "key-0001",
+          "role": "mgmt",
+          "size": "Medium"
+        },
+        {
+          "id": "nsxMgr",
+          "instances": 3,
+          "key": "key-0002",
+          "role": "mgmt",
+          "size": "Medium"
+        },
+        {
+          "id": "nsxGlobalMgr",
+          "instances": 3,
+          "key": "key-0003",
+          "size": "Large"
+        },
+        {
+          "id": "nsxEdge",
+          "instances": 2,
+          "key": "key-0004",
+          "size": "Large"
+        },
+        {
+          "id": "sddcMgr",
+          "instances": 1,
+          "key": "key-0005",
+          "size": "Default"
+        },
+        {
+          "id": "fleetMgr",
+          "instances": 1,
+          "key": "key-0006",
+          "size": "Default"
+        },
+        {
+          "id": "vcls",
+          "instances": 2,
+          "key": "key-0007",
+          "size": "Default"
+        },
+        {
+          "id": "vcfOps",
+          "instances": 3,
+          "key": "key-0008",
+          "size": "Medium"
+        },
+        {
+          "id": "vcfOpsCollector",
+          "instances": 1,
+          "key": "key-0009",
+          "size": "Medium"
+        },
+        {
+          "id": "vcfAuto",
+          "instances": 1,
+          "key": "key-0010",
+          "size": "Small"
+        },
+        {
+          "id": "vcfOpsLogs",
+          "instances": 3,
+          "key": "key-0011",
+          "size": "Medium"
+        },
+        {
+          "id": "vcfOpsNet",
+          "instances": 3,
+          "key": "key-0012",
+          "size": "Large"
+        },
+        {
+          "id": "vcfOpsNetCollector",
+          "instances": 1,
+          "key": "key-0013",
+          "size": "Large"
+        },
+        {
+          "id": "identityBroker",
+          "instances": 3,
+          "key": "key-0014",
+          "size": "Medium"
+        },
+        {
+          "id": "aviLb",
+          "instances": 3,
+          "key": "key-0015",
+          "size": "Small"
+        }
+      ],
+      "sharedTotals": {
+        "disk": 12879,
+        "ram": 914.25,
+        "vcpu": 254
+      },
+      "totalCores": 192,
+      "totalHosts": 6,
+      "totalRawTib": 251.45856,
+      "witness": null
+    },
+    {
+      "domainResults": [
+        {
+          "clusterResults": [
+            {
+              "demand": {
+                "disk": 6746,
+                "ram": 518.25,
+                "vcpu": 142
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 4,
+              "floors": {
+                "cpuHosts": 4,
+                "manualOverride": 0,
+                "policyMin": 3,
+                "ramHosts": 1,
+                "storageHosts": 2
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 128,
+              "limiter": "Compute",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 7264.25,
+                "pf": 1.5,
+                "protectedGb": 10896.375,
+                "swapGb": 518.25,
+                "totalReqGb": 15663.539062,
+                "vmCapGb": 6746,
+                "withFreeGb": 13620.46875
+              },
+              "rawTib": 167.63904,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 518.25
+              },
+              "vsanMinWarning": false
+            }
+          ],
+          "totalCores": 128,
+          "totalHosts": 4,
+          "totalRawTib": 167.63904
+        }
+      ],
+      "sharedStack": [
+        {
+          "id": "vcenter",
+          "instances": 1,
+          "key": "key-0016",
+          "role": "mgmt",
+          "size": "Medium"
+        },
+        {
+          "id": "nsxMgr",
+          "instances": 3,
+          "key": "key-0017",
+          "role": "mgmt",
+          "size": "Medium"
+        },
+        {
+          "id": "nsxGlobalMgr",
+          "instances": 3,
+          "key": "key-0018",
+          "size": "Large"
+        },
+        {
+          "id": "nsxEdge",
+          "instances": 2,
+          "key": "key-0019",
+          "size": "Large"
+        },
+        {
+          "id": "sddcMgr",
+          "instances": 1,
+          "key": "key-0020",
+          "size": "Default"
+        },
+        {
+          "id": "vcls",
+          "instances": 2,
+          "key": "key-0021",
+          "size": "Default"
+        },
+        {
+          "id": "vcfOpsCollector",
+          "instances": 1,
+          "key": "key-0022",
+          "size": "Medium"
+        },
+        {
+          "id": "vcfOpsNetCollector",
+          "instances": 1,
+          "key": "key-0023",
+          "size": "Large"
+        },
+        {
+          "id": "identityBroker",
+          "instances": 3,
+          "key": "key-0024",
+          "size": "Medium"
+        },
+        {
+          "id": "aviLb",
+          "instances": 3,
+          "key": "key-0025",
+          "size": "Small"
+        }
+      ],
+      "sharedTotals": {
+        "disk": 6746,
+        "ram": 518.25,
+        "vcpu": 142
+      },
+      "totalCores": 128,
+      "totalHosts": 4,
+      "totalRawTib": 167.63904,
+      "witness": null
+    }
+  ],
+  "siteResults": [
+    {
+      "projections": [
+        {
+          "otherSiteId": null,
+          "projectedDomains": [
+            {
+              "domain": {
+                "clusters": [
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0001",
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "instances": 1,
+                        "key": "key-0001",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "instances": 3,
+                        "key": "key-0002",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxGlobalMgr",
+                        "instances": 3,
+                        "key": "key-0003",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "instances": 2,
+                        "key": "key-0004",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "instances": 1,
+                        "key": "key-0005",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "fleetMgr",
+                        "instances": 1,
+                        "key": "key-0006",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcls",
+                        "instances": 2,
+                        "key": "key-0007",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcfOps",
+                        "instances": 3,
+                        "key": "key-0008",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "instances": 1,
+                        "key": "key-0009",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfAuto",
+                        "instances": 1,
+                        "key": "key-0010",
+                        "size": "Small"
+                      },
+                      {
+                        "id": "vcfOpsLogs",
+                        "instances": 3,
+                        "key": "key-0011",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsNet",
+                        "instances": 3,
+                        "key": "key-0012",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "instances": 1,
+                        "key": "key-0013",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "instances": 3,
+                        "key": "key-0014",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "aviLb",
+                        "instances": 3,
+                        "key": "key-0015",
+                        "size": "Small"
+                      }
+                    ],
+                    "isDefault": true,
+                    "name": "mgmt-cluster-01",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 0
+                    }
+                  }
+                ],
+                "componentsClusterId": null,
+                "hostSplitPct": 50,
+                "id": "dom-0001",
+                "localSiteId": "site-0001",
+                "name": "Management Domain",
+                "placement": "local",
+                "type": "mgmt",
+                "wldStack": []
+              },
+              "domainResult": {
+                "clusterResults": [
+                  {
+                    "demand": {
+                      "disk": 12879,
+                      "ram": 914.25,
+                      "vcpu": 254
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 6,
+                    "floors": {
+                      "cpuHosts": 6,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 192,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 13793.25,
+                      "pf": 1.5,
+                      "protectedGb": 20689.875,
+                      "swapGb": 914.25,
+                      "totalReqGb": 29741.695312,
+                      "vmCapGb": 12879,
+                      "withFreeGb": 25862.34375
+                    },
+                    "rawTib": 251.45856,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 914.25
+                    },
+                    "vsanMinWarning": false
+                  }
+                ],
+                "totalCores": 192,
+                "totalHosts": 6,
+                "totalRawTib": 251.45856
+              },
+              "projectedClusters": [
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0001",
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "instances": 1,
+                        "key": "key-0001",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "instances": 3,
+                        "key": "key-0002",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxGlobalMgr",
+                        "instances": 3,
+                        "key": "key-0003",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "instances": 2,
+                        "key": "key-0004",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "instances": 1,
+                        "key": "key-0005",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "fleetMgr",
+                        "instances": 1,
+                        "key": "key-0006",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcls",
+                        "instances": 2,
+                        "key": "key-0007",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcfOps",
+                        "instances": 3,
+                        "key": "key-0008",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "instances": 1,
+                        "key": "key-0009",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfAuto",
+                        "instances": 1,
+                        "key": "key-0010",
+                        "size": "Small"
+                      },
+                      {
+                        "id": "vcfOpsLogs",
+                        "instances": 3,
+                        "key": "key-0011",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsNet",
+                        "instances": 3,
+                        "key": "key-0012",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "instances": 1,
+                        "key": "key-0013",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "instances": 3,
+                        "key": "key-0014",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "aviLb",
+                        "instances": 3,
+                        "key": "key-0015",
+                        "size": "Small"
+                      }
+                    ],
+                    "isDefault": true,
+                    "name": "mgmt-cluster-01",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 0
+                    }
+                  },
+                  "hostsHere": 6,
+                  "rawTibHere": 251.45856,
+                  "result": {
+                    "demand": {
+                      "disk": 12879,
+                      "ram": 914.25,
+                      "vcpu": 254
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 6,
+                    "floors": {
+                      "cpuHosts": 6,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 192,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 13793.25,
+                      "pf": 1.5,
+                      "protectedGb": 20689.875,
+                      "swapGb": 914.25,
+                      "totalReqGb": 29741.695312,
+                      "vmCapGb": 12879,
+                      "withFreeGb": 25862.34375
+                    },
+                    "rawTib": 251.45856,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 914.25
+                    },
+                    "vsanMinWarning": false
+                  }
+                }
+              ],
+              "sharePct": 100
+            }
+          ],
+          "role": "primary",
+          "siteId": "site-0001"
+        },
+        {
+          "otherSiteId": null,
+          "projectedDomains": [
+            {
+              "domain": {
+                "clusters": [
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0002",
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "instances": 1,
+                        "key": "key-0016",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "instances": 3,
+                        "key": "key-0017",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxGlobalMgr",
+                        "instances": 3,
+                        "key": "key-0018",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "instances": 2,
+                        "key": "key-0019",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "instances": 1,
+                        "key": "key-0020",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcls",
+                        "instances": 2,
+                        "key": "key-0021",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "instances": 1,
+                        "key": "key-0022",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "instances": 1,
+                        "key": "key-0023",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "instances": 3,
+                        "key": "key-0024",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "aviLb",
+                        "instances": 3,
+                        "key": "key-0025",
+                        "size": "Small"
+                      }
+                    ],
+                    "isDefault": true,
+                    "name": "mgmt-cluster-01",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 0
+                    }
+                  }
+                ],
+                "componentsClusterId": null,
+                "hostSplitPct": 50,
+                "id": "dom-0002",
+                "localSiteId": "site-0001",
+                "name": "Management Domain",
+                "placement": "local",
+                "type": "mgmt",
+                "wldStack": []
+              },
+              "domainResult": {
+                "clusterResults": [
+                  {
+                    "demand": {
+                      "disk": 6746,
+                      "ram": 518.25,
+                      "vcpu": 142
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 4,
+                    "floors": {
+                      "cpuHosts": 4,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 1,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 128,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 7264.25,
+                      "pf": 1.5,
+                      "protectedGb": 10896.375,
+                      "swapGb": 518.25,
+                      "totalReqGb": 15663.539062,
+                      "vmCapGb": 6746,
+                      "withFreeGb": 13620.46875
+                    },
+                    "rawTib": 167.63904,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 518.25
+                    },
+                    "vsanMinWarning": false
+                  }
+                ],
+                "totalCores": 128,
+                "totalHosts": 4,
+                "totalRawTib": 167.63904
+              },
+              "projectedClusters": [
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0002",
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "instances": 1,
+                        "key": "key-0016",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "instances": 3,
+                        "key": "key-0017",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxGlobalMgr",
+                        "instances": 3,
+                        "key": "key-0018",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "instances": 2,
+                        "key": "key-0019",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "instances": 1,
+                        "key": "key-0020",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcls",
+                        "instances": 2,
+                        "key": "key-0021",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "instances": 1,
+                        "key": "key-0022",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "instances": 1,
+                        "key": "key-0023",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "instances": 3,
+                        "key": "key-0024",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "aviLb",
+                        "instances": 3,
+                        "key": "key-0025",
+                        "size": "Small"
+                      }
+                    ],
+                    "isDefault": true,
+                    "name": "mgmt-cluster-01",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 0
+                    }
+                  },
+                  "hostsHere": 4,
+                  "rawTibHere": 167.63904,
+                  "result": {
+                    "demand": {
+                      "disk": 6746,
+                      "ram": 518.25,
+                      "vcpu": 142
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 4,
+                    "floors": {
+                      "cpuHosts": 4,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 1,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 128,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 7264.25,
+                      "pf": 1.5,
+                      "protectedGb": 10896.375,
+                      "swapGb": 518.25,
+                      "totalReqGb": 15663.539062,
+                      "vmCapGb": 6746,
+                      "withFreeGb": 13620.46875
+                    },
+                    "rawTib": 167.63904,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 518.25
+                    },
+                    "vsanMinWarning": false
+                  }
+                }
+              ],
+              "sharePct": 100
+            }
+          ],
+          "role": "primary",
+          "siteId": "site-0001"
+        }
+      ],
+      "site": {
+        "id": "site-0001",
+        "location": "",
+        "name": "DC Primary",
+        "region": "",
+        "siteRole": ""
+      }
+    },
+    {
+      "projections": [],
+      "site": {
+        "id": "site-0002",
+        "location": "SEC",
+        "name": "DC Secondary",
+        "region": "",
+        "siteRole": ""
+      }
+    }
+  ],
+  "totalCores": 320,
+  "totalHosts": 10,
+  "totals": {
+    "diskGb": 19625,
+    "hosts": 10,
+    "ramGb": 1432.5,
+    "vcpu": 396
+  }
+}

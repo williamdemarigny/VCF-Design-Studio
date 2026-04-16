@@ -20,1420 +20,31 @@
 import { useState, useMemo, useRef } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APPLIANCE DATABASE — sourced from P&P Workbook Static Reference Tables sheet
-// (rows B8–B266) plus VKS Supervisor from techdocs.broadcom.com.
+// Engine symbols live in engine.js and are loaded before this module.
+// At runtime they’re attached to window.VcfEngine by the <script> tag in
+// vcf-design-studio-v5.html. Tests import engine.js directly via require().
 // ─────────────────────────────────────────────────────────────────────────────
-const APPLIANCE_DB = {
-  vcenter: {
-    placement: "per-domain",
-    recommendedScope: "mgmt",
-    label: "vCenter Server",
-    source: "P&P Workbook — vCenter Appliance CPU/RAM/Disk tables",
-    sizes: {
-      Tiny:   { vcpu: 2,  ram: 14, disk: 579,  note: "≤10 hosts / 100 VMs" },
-      Small:  { vcpu: 4,  ram: 21, disk: 694,  note: "≤100 hosts / 1k VMs" },
-      Medium: { vcpu: 8,  ram: 30, disk: 908,  note: "≤400 hosts / 4k VMs" },
-      Large:  { vcpu: 16, ram: 39, disk: 1358, note: "≤1k hosts / 10k VMs" },
-      XLarge: { vcpu: 24, ram: 58, disk: 2283, note: "≤2k hosts / 35k VMs" },
-    },
-    defaultSize: "Medium",
-  },
-  nsxMgr: {
-    placement: "per-domain",
-    recommendedScope: "mgmt",
-    label: "NSX Manager",
-    source: "P&P Workbook — NSX-T Manager CPU/RAM/Disk tables",
-    sizes: {
-      ExtraSmall: { vcpu: 2,  ram: 8,  disk: 300, note: "CSM only — not for production" },
-      Small:      { vcpu: 4,  ram: 16, disk: 300, note: "Lab/PoC only" },
-      Medium:     { vcpu: 6,  ram: 24, disk: 300, note: "Default, ≤128 hosts" },
-      Large:      { vcpu: 12, ram: 48, disk: 300, note: "≤1024 hosts" },
-      XLarge:     { vcpu: 24, ram: 96, disk: 400, note: "≤2048 hosts" },
-    },
-    defaultSize: "Medium",
-  },
-  nsxEdge: {
-    placement: "per-domain",
-    label: "NSX Edge",
-    source: "P&P Workbook — NSX-T Edge CPU/RAM/Disk tables",
-    sizes: {
-      Small:  { vcpu: 2,  ram: 4,  disk: 200, note: "Lab/PoC only" },
-      Medium: { vcpu: 4,  ram: 8,  disk: 200, note: "Production w/ LB" },
-      Large:  { vcpu: 8,  ram: 32, disk: 200, note: "Production w/ LB" },
-      XLarge: { vcpu: 16, ram: 64, disk: 200, note: "Largest production" },
-    },
-    defaultSize: "Large",
-  },
-  sddcMgr: {
-    placement: "per-instance",
-    label: "SDDC Manager",
-    source: "P&P Workbook — SDDC Manager fixed values",
-    sizes: { Default: { vcpu: 4, ram: 16, disk: 914, note: "Single fixed size" } },
-    defaultSize: "Default",
-    fixed: true,
-  },
-  fleetMgr: {
-    placement: "per-instance",
-    label: "VCF Operations Fleet Manager",
-    source: "P&P Workbook — VCF Operations Fleet Manager fixed values",
-    sizes: { Default: { vcpu: 4, ram: 12, disk: 194, note: "Single fixed size" } },
-    defaultSize: "Default",
-    fixed: true,
-  },
-  vcls: {
-    placement: "cluster-internal",
-    label: "vSphere Cluster Services (vCLS)",
-    source: "P&P Workbook — vCLS Virtual Machines fixed values",
-    sizes: { Default: { vcpu: 1, ram: 0.125, disk: 2, note: "Per VM (typically 2 per cluster)" } },
-    defaultSize: "Default",
-    fixed: true,
-  },
-  vcfOps: {
-    placement: "per-instance",
-    label: "VCF Operations",
-    source: "P&P Workbook + Broadcom KB 397782",
-    sizes: {
-      ExtraSmall: { vcpu: 2,  ram: 8,   disk: 274, note: "≤700 objects" },
-      Small:      { vcpu: 4,  ram: 16,  disk: 274, note: "≤10k objects" },
-      Medium:     { vcpu: 8,  ram: 32,  disk: 274, note: "≤30k objects" },
-      Large:      { vcpu: 16, ram: 48,  disk: 274, note: "≤44k objects" },
-      ExtraLarge: { vcpu: 24, ram: 128, disk: 274, note: "≤100k objects" },
-    },
-    defaultSize: "Medium",
-  },
-  vcfOpsCollector: {
-    placement: "per-instance",
-    label: "VCF Operations Collector",
-    source: "P&P Workbook + KB 397782 — collector inherits node profile",
-    sizes: {
-      ExtraSmall: { vcpu: 2,  ram: 8,   disk: 274 },
-      Small:      { vcpu: 4,  ram: 16,  disk: 274 },
-      Medium:     { vcpu: 8,  ram: 32,  disk: 274 },
-      Large:      { vcpu: 16, ram: 48,  disk: 274 },
-      ExtraLarge: { vcpu: 24, ram: 128, disk: 274 },
-    },
-    defaultSize: "Medium",
-  },
-  vcfOpsProxy: {
-    placement: "per-instance",
-    label: "VCF Operations Unified Cloud Proxy",
-    source: "P&P Workbook — VCF Operations Proxy",
-    sizes: {
-      Small:    { vcpu: 4, ram: 16, disk: 264, note: "≤16k objects" },
-      Standard: { vcpu: 8, ram: 48, disk: 264, note: "≤80k objects" },
-    },
-    defaultSize: "Small",
-  },
-  vcfAuto: {
-    placement: "per-instance",
-    label: "VCF Automation",
-    source: "P&P Workbook — VCF Automation CPU/RAM/Disk tables",
-    sizes: {
-      Small:  { vcpu: 24, ram: 96,  disk: 455 },
-      Medium: { vcpu: 24, ram: 96,  disk: 334 },
-      Large:  { vcpu: 32, ram: 128, disk: 430 },
-    },
-    defaultSize: "Small",
-  },
-  vcfOpsLogs: {
-    placement: "per-instance",
-    label: "VCF Operations for Logs",
-    source: "P&P Workbook — vRLI tables",
-    sizes: {
-      Small:  { vcpu: 4,  ram: 8,  disk: 530, note: "PoC/test only" },
-      Medium: { vcpu: 8,  ram: 16, disk: 530, note: "Min for production cluster" },
-      Large:  { vcpu: 16, ram: 32, disk: 530, note: "15k EPS / node" },
-    },
-    defaultSize: "Medium",
-  },
-  vcfOpsNet: {
-    placement: "per-instance",
-    label: "VCF Operations for Networks (Platform)",
-    source: "P&P Workbook + techdocs VCF 9 system requirements",
-    sizes: {
-      Small:      { vcpu: 4,  ram: 16,  disk: 1024, note: "Eval only" },
-      Medium:     { vcpu: 8,  ram: 32,  disk: 1024, note: "≤4k VMs" },
-      Large:      { vcpu: 12, ram: 48,  disk: 1024, note: "≤6k VMs" },
-      ExtraLarge: { vcpu: 16, ram: 64,  disk: 1024, note: "≤10k VMs" },
-      XXLarge:    { vcpu: 24, ram: 128, disk: 1024, note: "≤15k VMs" },
-    },
-    defaultSize: "Large",
-  },
-  vcfOpsNetCollector: {
-    placement: "per-instance",
-    label: "VCF Operations for Networks Collector",
-    source: "P&P Workbook — Networks Collector tables",
-    sizes: {
-      Small:      { vcpu: 2,  ram: 4,  disk: 250 },
-      Medium:     { vcpu: 4,  ram: 12, disk: 250 },
-      Large:      { vcpu: 8,  ram: 16, disk: 250 },
-      ExtraLarge: { vcpu: 8,  ram: 24, disk: 250 },
-      XXLarge:    { vcpu: 16, ram: 48, disk: 250 },
-    },
-    defaultSize: "Large",
-  },
-  identityBroker: {
-    placement: "per-instance",
-    label: "VCF Identity Broker (WSA)",
-    source: "P&P Workbook — WSA CPU/RAM/Disk tables",
-    sizes: {
-      ExtraSmall:      { vcpu: 4,  ram: 8,  disk: 100 },
-      Small:           { vcpu: 8,  ram: 16, disk: 290 },
-      Medium:          { vcpu: 8,  ram: 16, disk: 220 },
-      Large:           { vcpu: 10, ram: 16, disk: 100 },
-      ExtraLarge:      { vcpu: 12, ram: 32, disk: 100 },
-      ExtraExtraLarge: { vcpu: 14, ram: 48, disk: 100 },
-    },
-    defaultSize: "Medium",
-  },
-  aviLb: {
-    placement: "per-domain",
-    recommendedScope: "mgmt",
-    label: "Avi Load Balancer (NSX ALB)",
-    source: "P&P Workbook — AVI Load Balancer tables",
-    sizes: {
-      Small:  { vcpu: 6,  ram: 32, disk: 512 },
-      Large:  { vcpu: 16, ram: 48, disk: 1400 },
-      XLarge: { vcpu: 16, ram: 64, disk: 1750 },
-    },
-    defaultSize: "Small",
-  },
-  hcxConnector: {
-    placement: "per-instance",
-    label: "HCX Connector",
-    source: "P&P Workbook — Cross-Cloud Mobility HCX",
-    sizes: { Default: { vcpu: 4, ram: 12, disk: 65, note: "Single fixed size" } },
-    defaultSize: "Default",
-    fixed: true,
-  },
-  // Security Services Platform — values are aggregate across constituent VMs.
-  ssp: {
-    placement: "per-instance",
-    label: "Security Services Platform (SSP)",
-    source: "P&P Workbook — SSP CPU/RAM/Disk (aggregate: installer + controllers + workers)",
-    sizes: {
-      Medium: { vcpu: 112, ram: 414, disk: 4096, note: "1 SSPI + 3 Ctrl + 5 Workers (9 VMs total)" },
-      Large:  { vcpu: 160, ram: 606, disk: 5120, note: "1 SSPI + 3 Ctrl + 8 Workers (12 VMs total)" },
-      XLarge: { vcpu: 192, ram: 734, disk: 6656, note: "1 SSPI + 3 Ctrl + 10 Workers (14 VMs total)" },
-    },
-    defaultSize: "Medium",
-  },
-  // VKS Supervisor Control Plane — sourced from techdocs.broadcom.com (the
-  // workbook has no VKS sizing). The "instances" field models the control
-  // plane availability model: Simple = 1 VM, HA = 3 VMs. Both deployment
-  // flavors (traditional 3-node and Single Management Zone with NSX VPC) use
-  // identical per-VM sizes — the difference is just instance count.
-  vksSupervisor: {
-    placement: "cluster-internal",
-    label: "VKS Supervisor (Control Plane)",
-    source: "techdocs.broadcom.com — VCF 9.0 Change the Control Plane Size of a Supervisor",
-    sizes: {
-      Tiny:   { vcpu: 2,  ram: 8,  disk: 32, note: "Smallest tier" },
-      Small:  { vcpu: 4,  ram: 16, disk: 32, note: "Default" },
-      Medium: { vcpu: 8,  ram: 16, disk: 32, note: "Note: same RAM as Small" },
-      Large:  { vcpu: 16, ram: 32, disk: 32, note: "Largest tier" },
-    },
-    defaultSize: "Small",
-    info: "VKS Supervisor deploys Simple (1 VM) or HA (3 VMs). Set Inst=1 for Single Management Zone / single-VM. Set Inst=3 for HA control plane (required for 3-zone, recommended for production). Per-VM sizing is identical regardless of deployment flavor — the only difference is VM count and zone topology.",
-  },
-  // NSX Global Manager — uses same sizing table as Local Manager but tracked
-  // separately. Required for NSX Federation (active/active cross-instance).
-  nsxGlobalMgr: {
-    placement: "per-instance",
-    label: "NSX Global Manager",
-    source: "P&P Workbook — NSX-T Manager tables (GM uses same sizing as LM)",
-    sizes: {
-      Medium:     { vcpu: 6,  ram: 24, disk: 300, note: "≤128 hosts" },
-      Large:      { vcpu: 12, ram: 48, disk: 300, note: "≤1024 hosts" },
-      XLarge:     { vcpu: 24, ram: 96, disk: 400, note: "≤2048 hosts" },
-    },
-    defaultSize: "Large",
-  },
-  // Site Recovery Manager — for Site Protection & DR validated solution
-  srm: {
-    placement: "per-instance",
-    label: "Site Recovery Manager (SRM)",
-    source: "P&P Workbook — SRM CPU/RAM/Disk tables",
-    sizes: {
-      Light:    { vcpu: 2, ram: 8,  disk: 20,  note: "Small environments" },
-      Standard: { vcpu: 8, ram: 24, disk: 800, note: "Production" },
-    },
-    defaultSize: "Standard",
-  },
-  // vSphere Replication Manager Server — paired with SRM for DR
-  vrms: {
-    placement: "per-instance",
-    label: "vSphere Replication (VRMS)",
-    source: "P&P Workbook — VRMS CPU/RAM/Disk tables",
-    sizes: {
-      Light:    { vcpu: 2, ram: 8, disk: 33, note: "Small environments" },
-      Standard: { vcpu: 4, ram: 8, disk: 33, note: "Production" },
-    },
-    defaultSize: "Standard",
-  },
-  // Health Reporting and Monitoring VM
-  hvm: {
-    placement: "per-instance",
-    label: "Health Reporting & Monitoring (HVM)",
-    source: "P&P Workbook — Health Reporting and Monitoring fixed values",
-    sizes: { Default: { vcpu: 2, ram: 8, disk: 20, note: "Single fixed size" } },
-    defaultSize: "Default",
-    fixed: true,
-  },
-  // Cloud-Based Ransomware Recovery Connector
-  cyberRecoveryConnector: {
-    placement: "per-instance",
-    label: "Live Cyber Recovery Connector",
-    source: "P&P Workbook — Cloud-Based Ransomware Recovery",
-    sizes: { Default: { vcpu: 8, ram: 12, disk: 100, note: "Single fixed size" } },
-    defaultSize: "Default",
-    fixed: true,
-  },
-  // vSAN Witness Host Appliance — required at a third fault domain for vSAN
-  // stretched clusters only. Not needed when using array-based replication.
-  // Deploys as a nested ESXi VM. Sizes per techdocs.broadcom.com.
-  vsanWitness: {
-    placement: "site-level",
-    label: "vSAN Witness Host Appliance",
-    source: "techdocs.broadcom.com — vSAN Witness Host Appliance sizing",
-    sizes: {
-      Tiny:   { vcpu: 2, ram: 8,  disk: 15,  note: "≤10 hosts, ≤750 components" },
-      Medium: { vcpu: 2, ram: 16, disk: 350,  note: "≤21 hosts, ≤22.5k components" },
-      Large:  { vcpu: 2, ram: 32, disk: 730,  note: "≤64 hosts, ≤45k components" },
-    },
-    defaultSize: "Medium",
-    info: "Deploys at the witness site (third fault domain), NOT at either data site. One witness per stretched cluster. Resources are consumed at the witness location only.",
-  },
-};
+const {
+  APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS,
+  POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB,
+  recommendVcenterSize, recommendNsxSize,
+  cryptoKey, baseHostSpec, baseStorageSettings, baseTiering,
+  newCluster, newMgmtCluster, newWorkloadCluster,
+  newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet,
+  buildDefaultPlacement, ensurePlacement,
+  getInitialInstance, isInitialInstance, stackForInstance,
+  promoteToInitial, inferDeploymentPathway, inferFederationEnabled,
+  SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT,
+  DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries,
+  T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways,
+  EDGE_DEPLOYMENT_MODELS,
+  migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance,
+  migrateV3ToV5, migrateFleet,
+  stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster,
+  analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance,
+  projectInstanceOntoSite, sizeFleet,
+} = (typeof window !== "undefined" ? window.VcfEngine : require("./engine.js"));
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DEPLOYMENT PROFILES — instance counts derived from the P&P Workbook formulas.
-// Each profile defines the management appliance stack that gets auto-applied
-// when the user selects a deployment model at the VCF Instance level. Users
-// can still customize after applying a profile.
-//
-// Source: workbook "Management Domain Sizing" sheet, column J formulas:
-//   - NSX Mgr: J11 = IF(H32="Mandatory - Single Node",1,3)
-//   - VCF Ops: J20 = IF(Deploy HA → 3, Deploy Simple → 1)
-//   - VCF Auto: J22 = IF(Small → 1, Medium → 3, Large → 3)
-//   - VCF Logs: J23 = IF(Deploy HA → 3, 1)
-//   - VCF Net:  J24 = IF(Deploy HA → 3, 1)
-//   - Identity: J26 = IF(Deploy HA → 3, Deploy → 1, Embedded → 0)
-//   - Avi LB:   J13 = IF(deployed → 3)
-//   - NSX Edge: J12 = IF(deployed → 2)
-//   - NSX GM:   J11 += IF(GM deployed → 3)
-// ─────────────────────────────────────────────────────────────────────────────
-const DEPLOYMENT_PROFILES = {
-  simple: {
-    label: "Simple (Lab / PoC)",
-    description: "Single-node appliances, no redundancy. Per workbook 'Deploy Simple' model. Not for production.",
-    stack: [
-      { id: "vcenter",         size: "Small",   instances: 1 },
-      { id: "nsxMgr",          size: "Medium",  instances: 1 },
-      { id: "sddcMgr",         size: "Default", instances: 1 },
-      { id: "fleetMgr",        size: "Default", instances: 1 },
-      { id: "vcls",            size: "Default", instances: 2 },
-      { id: "vcfOps",          size: "Medium",  instances: 1 },
-      { id: "vcfOpsCollector", size: "Medium",  instances: 1 },
-    ],
-  },
-  ha: {
-    label: "HA Production",
-    description: "Clustered appliances with full redundancy. Per workbook 'Deploy HA' model with NSX HA Cluster, recommended for all production deployments.",
-    stack: [
-      { id: "vcenter",            size: "Medium",  instances: 1 },
-      { id: "nsxMgr",             size: "Medium",  instances: 3 },
-      { id: "nsxEdge",            size: "Large",   instances: 2 },
-      { id: "sddcMgr",            size: "Default", instances: 1 },
-      { id: "fleetMgr",           size: "Default", instances: 1 },
-      { id: "vcls",               size: "Default", instances: 2 },
-      { id: "vcfOps",             size: "Medium",  instances: 3 },
-      { id: "vcfOpsCollector",    size: "Medium",  instances: 1 },
-      { id: "vcfAuto",            size: "Small",   instances: 1 },
-      { id: "vcfOpsLogs",         size: "Medium",  instances: 3 },
-      { id: "vcfOpsNet",          size: "Large",   instances: 3 },
-      { id: "vcfOpsNetCollector", size: "Large",   instances: 1 },
-      { id: "identityBroker",     size: "Medium",  instances: 3 },
-      { id: "aviLb",              size: "Small",   instances: 3 },
-    ],
-  },
-  haFederation: {
-    label: "HA + NSX Federation",
-    description: "HA production plus NSX Global Manager (3-node HA cluster) for cross-instance networking. Required when federating NSX across multiple VCF instances (active/active datacenters).",
-    stack: [
-      { id: "vcenter",            size: "Medium",  instances: 1 },
-      { id: "nsxMgr",             size: "Medium",  instances: 3 },
-      { id: "nsxGlobalMgr",       size: "Large",   instances: 3 },
-      { id: "nsxEdge",            size: "Large",   instances: 2 },
-      { id: "sddcMgr",            size: "Default", instances: 1 },
-      { id: "fleetMgr",           size: "Default", instances: 1 },
-      { id: "vcls",               size: "Default", instances: 2 },
-      { id: "vcfOps",             size: "Medium",  instances: 3 },
-      { id: "vcfOpsCollector",    size: "Medium",  instances: 1 },
-      { id: "vcfAuto",            size: "Small",   instances: 1 },
-      { id: "vcfOpsLogs",         size: "Medium",  instances: 3 },
-      { id: "vcfOpsNet",          size: "Large",   instances: 3 },
-      { id: "vcfOpsNetCollector", size: "Large",   instances: 1 },
-      { id: "identityBroker",     size: "Medium",  instances: 3 },
-      { id: "aviLb",              size: "Small",   instances: 3 },
-    ],
-  },
-  haSiteProtection: {
-    label: "HA + Site Protection (DR)",
-    description: "HA production plus VMware Live Recovery (SRM + vSphere Replication) for disaster recovery to a secondary site. Deploy matching profile on recovery site.",
-    stack: [
-      { id: "vcenter",            size: "Medium",  instances: 1 },
-      { id: "nsxMgr",             size: "Medium",  instances: 3 },
-      { id: "nsxEdge",            size: "Large",   instances: 2 },
-      { id: "sddcMgr",            size: "Default", instances: 1 },
-      { id: "fleetMgr",           size: "Default", instances: 1 },
-      { id: "vcls",               size: "Default", instances: 2 },
-      { id: "vcfOps",             size: "Medium",  instances: 3 },
-      { id: "vcfOpsCollector",    size: "Medium",  instances: 1 },
-      { id: "vcfAuto",            size: "Small",   instances: 1 },
-      { id: "vcfOpsLogs",         size: "Medium",  instances: 3 },
-      { id: "vcfOpsNet",          size: "Large",   instances: 3 },
-      { id: "vcfOpsNetCollector", size: "Large",   instances: 1 },
-      { id: "identityBroker",     size: "Medium",  instances: 3 },
-      { id: "aviLb",              size: "Small",   instances: 3 },
-      { id: "srm",                size: "Standard", instances: 1 },
-      { id: "vrms",               size: "Standard", instances: 1 },
-    ],
-  },
-  haFederationSiteProtection: {
-    label: "HA + Federation + Site Protection",
-    description: "Full enterprise: HA appliances, NSX Federation for active/active networking across instances, plus VMware Live Recovery for DR. Maximum resilience deployment.",
-    stack: [
-      { id: "vcenter",            size: "Medium",  instances: 1 },
-      { id: "nsxMgr",             size: "Medium",  instances: 3 },
-      { id: "nsxGlobalMgr",       size: "Large",   instances: 3 },
-      { id: "nsxEdge",            size: "Large",   instances: 2 },
-      { id: "sddcMgr",            size: "Default", instances: 1 },
-      { id: "fleetMgr",           size: "Default", instances: 1 },
-      { id: "vcls",               size: "Default", instances: 2 },
-      { id: "vcfOps",             size: "Medium",  instances: 3 },
-      { id: "vcfOpsCollector",    size: "Medium",  instances: 1 },
-      { id: "vcfAuto",            size: "Small",   instances: 1 },
-      { id: "vcfOpsLogs",         size: "Medium",  instances: 3 },
-      { id: "vcfOpsNet",          size: "Large",   instances: 3 },
-      { id: "vcfOpsNetCollector", size: "Large",   instances: 1 },
-      { id: "identityBroker",     size: "Medium",  instances: 3 },
-      { id: "aviLb",              size: "Small",   instances: 3 },
-      { id: "srm",                size: "Standard", instances: 1 },
-      { id: "vrms",               size: "Standard", instances: 1 },
-    ],
-  },
-};
-
-// Default uses HA profile
-const DEFAULT_MGMT_STACK_TEMPLATE = DEPLOYMENT_PROFILES.ha.stack;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SCALE LIMITS & RECOMMENDATION HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-const SIZING_LIMITS = {
-  vcenter: {
-    Tiny:   { hosts: 10,   vms: 100,   label: "10 hosts / 100 VMs" },
-    Small:  { hosts: 100,  vms: 1000,  label: "100 hosts / 1k VMs" },
-    Medium: { hosts: 400,  vms: 4000,  label: "400 hosts / 4k VMs" },
-    Large:  { hosts: 1000, vms: 10000, label: "1k hosts / 10k VMs" },
-    XLarge: { hosts: 2000, vms: 35000, label: "2k hosts / 35k VMs" },
-  },
-  nsxMgr: {
-    ExtraSmall: { hosts: 0,    clusters: 0,   label: "CSM only", production: false },
-    Small:      { hosts: 0,    clusters: 0,   label: "PoC only", production: false },
-    Medium:     { hosts: 128,  clusters: 5,   label: "128 hosts / 5 clusters", production: true },
-    Large:      { hosts: 1024, clusters: 256, label: "1024 hosts / 256 clusters", production: true },
-    XLarge:     { hosts: 2048, clusters: 512, label: "2048 hosts / 512 clusters", production: true },
-  },
-};
-
-function recommendVcenterSize(hosts, vms) {
-  for (const k of ["Tiny", "Small", "Medium", "Large", "XLarge"]) {
-    const lim = SIZING_LIMITS.vcenter[k];
-    if (hosts <= lim.hosts && vms <= lim.vms) return k;
-  }
-  return "XLarge";
-}
-function recommendNsxSize(hosts, clusters) {
-  for (const k of ["Medium", "Large", "XLarge"]) {
-    const lim = SIZING_LIMITS.nsxMgr[k];
-    if (hosts <= lim.hosts && clusters <= lim.clusters) return k;
-  }
-  return "XLarge";
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PROTECTION POLICIES & CONSTANTS
-// ─────────────────────────────────────────────────────────────────────────────
-const POLICIES = {
-  raid5_2p1:   { label: "RAID-5 (2+1) FTT=1", pf: 1.50, minHosts: 3, ftt: 1 },
-  raid5_4p1:   { label: "RAID-5 (4+1) FTT=1", pf: 1.25, minHosts: 6, ftt: 1 },
-  raid6_4p2:   { label: "RAID-6 (4+2) FTT=2", pf: 1.50, minHosts: 6, ftt: 2 },
-  mirror_ftt1: { label: "Mirror FTT=1",       pf: 2.00, minHosts: 3, ftt: 1 },
-  mirror_ftt2: { label: "Mirror FTT=2",       pf: 3.00, minHosts: 5, ftt: 2 },
-  mirror_ftt3: { label: "Mirror FTT=3",       pf: 4.00, minHosts: 7, ftt: 3 },
-};
-
-const TB_TO_TIB = 0.9095;
-const TIB_PER_CORE = 1;
-const NVME_TIER_PARTITION_CAP_GB = 4096;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FACTORIES — create new entities at each level of the hierarchy
-// ─────────────────────────────────────────────────────────────────────────────
-function cryptoKey() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-}
-
-const baseHostSpec = () => ({
-  cpuQty: 2,
-  coresPerCpu: 16,
-  hyperthreadingEnabled: false,
-  ramGb: 1024,
-  nvmeQty: 6,
-  nvmeSizeTb: 7.68,
-  cpuOversub: 2,
-  ramOversub: 1,
-  reservePct: 30,
-});
-
-const baseStorageSettings = () => ({
-  policy: "raid5_2p1",
-  dedup: 1.0,
-  compression: 1.0,
-  swapPct: 100,
-  freePct: 25,
-  growthPct: 15,
-  externalStorage: false,
-  externalArrayTib: 0,
-});
-
-const baseTiering = () => ({
-  enabled: false,
-  nvmePct: 100,
-  eligibilityPct: 70,
-  tierDriveSizeTb: 7.68,
-});
-
-// A cluster is the leaf-level unit where the sizing math runs. It has its own
-// host hardware, its own workload demand, and its own infrastructure stack.
-function newCluster(name = "cluster-01", isDefault = true) {
-  return {
-    id: `clu-${cryptoKey()}`,
-    name,
-    isDefault,
-    host: baseHostSpec(),
-    // Workload VMs that run in this cluster
-    workload: {
-      vmCount: 0,
-      vcpuPerVm: 4,
-      ramPerVm: 16,
-      diskPerVm: 100,
-    },
-    // Infrastructure appliances that run in this cluster
-    infraStack: [],
-    storage: baseStorageSettings(),
-    tiering: baseTiering(),
-    // Manual host-count floor: when > 0 the sizing engine treats this as
-    // another `candidates` entry alongside CPU/RAM/storage/policy floors.
-    // Lets the user force a stretched cluster to have enough hosts per
-    // side to survive a site failure without changing host specs. Cannot
-    // drop finalHosts below the architectural minimum; only raise it.
-    hostOverride: 0,
-  };
-}
-
-// Build the default mgmt cluster — same as a regular cluster but with the
-// standard management appliance stack pre-populated.
-function newMgmtCluster(name = "mgmt-cluster-01") {
-  const c = newCluster(name, true);
-  c.infraStack = DEFAULT_MGMT_STACK_TEMPLATE.map((s) => ({ ...s, key: cryptoKey() }));
-  return c;
-}
-
-// A workload cluster pre-populated with vCLS (since every cluster needs it)
-function newWorkloadCluster(name = "wld-cluster-01") {
-  const c = newCluster(name, true);
-  c.infraStack = [{ id: "vcls", size: "Default", instances: 2, key: cryptoKey() }];
-  c.workload = { vmCount: 200, vcpuPerVm: 4, ramPerVm: 16, diskPerVm: 100 };
-  return c;
-}
-
-// A domain is a thin container that holds clusters. The domain's vCenter and
-// other management overhead live in its parent instance's mgmt domain (the
-// workbook convention) — domains themselves don't carry sizing data.
-function newMgmtDomain(name = "Management Domain") {
-  return {
-    id: `dom-${cryptoKey()}`,
-    type: "mgmt",
-    name,
-    placement: "stretched", // mgmt domain defaults to stretched when instance is stretched
-    hostSplitPct: 50,       // % of hosts at siteIds[0] (rest at siteIds[1]) when stretched
-    localSiteId: null,      // when placement === "local", which site id the domain runs at
-    clusters: [newMgmtCluster()],
-  };
-}
-
-function newWorkloadDomain(name = "Workload Domain 01") {
-  return {
-    id: `dom-${cryptoKey()}`,
-    type: "workload",
-    name,
-    placement: "local",  // "local" = pinned to one site, "stretched" = spans both
-    hostSplitPct: 50,    // % of hosts at siteIds[0] when stretched
-    localSiteId: null,   // set by the parent InstanceCard to a concrete site id
-    // VCF domain services (dedicated vCenter, NSX Manager cluster, edges, Avi,
-    // VCF Automation, etc.) for this workload domain. Does NOT include vCLS —
-    // that is per-cluster baseline and lives in cluster.infraStack.
-    wldStack: [],
-    // Id of the specific cluster that hosts wldStack VMs. Can point at any
-    // cluster in the instance's mgmt domain (VCF 9 default — any of the
-    // mgmt domain's 1+ clusters) or any cluster in THIS workload domain.
-    // Set by the parent InstanceCard when the domain is added; null means
-    // "fall back to the mgmt domain's first cluster at sizing time".
-    componentsClusterId: null,
-    clusters: [newWorkloadCluster()],
-  };
-}
-
-// A VCF instance has exactly one mgmt domain plus zero or more workload domains.
-// When stretched: the instance spans a primary site (where it lives in the hierarchy)
-// and a secondary site. Individual domains can be local or stretched.
-// Stretched clusters require synchronous storage replication (vSAN stretched
-// cluster or array-based replication) and L2 network stretch via NSX.
-function newInstance(name = "vcf-instance-01", siteIds = []) {
-  return {
-    id: "inst-" + cryptoKey(),
-    name,
-    deploymentProfile: "ha",
-    siteIds: [...siteIds],
-    witnessEnabled: false,
-    witnessSize: "Medium",
-    witnessSite: { name: "Witness Site", location: "" },
-    domains: [newMgmtDomain()],
-  };
-}
-
-function newSite(name = "Primary Site", location = "") {
-  return { id: "site-" + cryptoKey(), name, location };
-}
-
-function newFleet() {
-  const primary = newSite("Primary Site", "");
-  const inst = newInstance("vcf-instance-01", [primary.id]);
-  return {
-    id: "fleet-" + cryptoKey(),
-    name: "Production Fleet",
-    sites: [primary],
-    instances: [inst],
-  };
-}
-
-// Build default appliance-to-site assignments for a stretched instance.
-// Each appliance VM is assigned to a site in alternating fashion so the VMs
-// are roughly evenly distributed. Returns a map: { [applianceKey]: [siteId, ...] }
-// where the array length equals the appliance's `instances` count.
-function buildDefaultPlacement(instance) {
-  const siteIds = instance.siteIds || [];
-  if (siteIds.length < 2) return {};
-  const placement = {};
-  for (const dom of instance.domains || []) {
-    for (const clu of dom.clusters || []) {
-      for (const entry of clu.infraStack || []) {
-        const count = entry.instances || 1;
-        const assigned = [];
-        for (let i = 0; i < count; i++) {
-          assigned.push(siteIds[i % siteIds.length]);
-        }
-        placement[entry.key] = assigned;
-      }
-    }
-    if (dom.type === "workload") {
-      for (const entry of dom.wldStack || []) {
-        const count = entry.instances || 1;
-        const assigned = [];
-        for (let i = 0; i < count; i++) {
-          assigned.push(siteIds[i % siteIds.length]);
-        }
-        placement[entry.key] = assigned;
-      }
-    }
-  }
-  return placement;
-}
-
-// Ensure instance.appliancePlacement exists and covers all current stack entries.
-// Adds missing keys with default alternating assignments, removes stale keys.
-function ensurePlacement(instance) {
-  if ((instance.siteIds || []).length < 2) return {};
-  const existing = instance.appliancePlacement || {};
-  const defaults = buildDefaultPlacement(instance);
-  const merged = {};
-  for (const [key, defaultAssign] of Object.entries(defaults)) {
-    const prev = existing[key];
-    if (prev && prev.length === defaultAssign.length) {
-      // Validate all site IDs still exist on this instance
-      const valid = prev.every((sid) => instance.siteIds.includes(sid));
-      merged[key] = valid ? prev : defaultAssign;
-    } else {
-      merged[key] = defaultAssign;
-    }
-  }
-  return merged;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MIGRATION — convert old v2 flat format into new v3 hierarchical structure.
-// Old format: { version: "vcf-sizer-v2", mgmt: {...}, wlds: [{...}] }
-// New format: { version: "vcf-sizer-v3", fleet: { sites: [{ instances: [{ domains: [...] }] }] } }
-// ─────────────────────────────────────────────────────────────────────────────
-function migrateV2ToV3(oldConfig) {
-  const oldMgmt = oldConfig.mgmt;
-  const oldWlds = oldConfig.wlds || [];
-
-  // Old mgmt domain → new mgmt domain with one cluster containing the old data
-  const mgmtCluster = {
-    id: `clu-${cryptoKey()}`,
-    name: "mgmt-cluster-01",
-    isDefault: true,
-    host: oldMgmt.host || baseHostSpec(),
-    workload: { vmCount: 0, vcpuPerVm: 4, ramPerVm: 16, diskPerVm: 100 },
-    infraStack: (oldMgmt.stack || []).map((s) => ({ ...s, key: cryptoKey() })),
-    storage: oldMgmt.storage || baseStorageSettings(),
-    tiering: oldMgmt.tiering || baseTiering(),
-  };
-  const mgmtDomain = {
-    id: `dom-${cryptoKey()}`,
-    type: "mgmt",
-    name: oldMgmt.name || "Management Domain",
-    clusters: [mgmtCluster],
-  };
-
-  // Old workload domains → new workload domains with one cluster each
-  const wldDomains = oldWlds.map((w, i) => {
-    const cluster = {
-      id: `clu-${cryptoKey()}`,
-      name: `wld-cluster-01`,
-      isDefault: true,
-      host: w.host || baseHostSpec(),
-      workload: {
-        vmCount: w.vmCount || 0,
-        vcpuPerVm: w.vcpuPerVm || 4,
-        ramPerVm: w.ramPerVm || 16,
-        diskPerVm: w.diskPerVm || 100,
-      },
-      infraStack: (w.infraStack || []).map((s) => ({ ...s, key: cryptoKey() })),
-      storage: w.storage || baseStorageSettings(),
-      tiering: w.tiering || baseTiering(),
-    };
-    return {
-      id: `dom-${cryptoKey()}`,
-      type: "workload",
-      name: w.name || `Workload Domain ${i + 1}`,
-      clusters: [cluster],
-    };
-  });
-
-  return {
-    id: `fleet-${cryptoKey()}`,
-    name: "Migrated Fleet (from v2)",
-    sites: [{
-      id: `site-${cryptoKey()}`,
-      name: "Primary Site",
-      location: "",
-      instances: [{
-        id: `inst-${cryptoKey()}`,
-        name: "vcf-instance-01",
-        domains: [mgmtDomain, ...wldDomains],
-      }],
-    }],
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// v3 → v5 MIGRATION — lift instances out of sites, consolidate stretched dupes
-// ─────────────────────────────────────────────────────────────────────────────
-function domainStructureMatches(a, b) {
-  if (!a?.domains || !b?.domains) return false;
-  if (a.domains.length !== b.domains.length) return false;
-  for (let i = 0; i < a.domains.length; i++) {
-    const da = a.domains[i], db = b.domains[i];
-    if (da.type !== db.type) return false;
-    if ((da.clusters || []).length !== (db.clusters || []).length) return false;
-    for (let j = 0; j < da.clusters.length; j++) {
-      if (!!da.clusters[j].isDefault !== !!db.clusters[j].isDefault) return false;
-    }
-  }
-  return true;
-}
-
-function stackSignature(domains) {
-  const parts = [];
-  for (const d of domains || []) {
-    for (const c of d.clusters || []) {
-      for (const e of c.infraStack || []) parts.push(`${e.id}:${e.size}:${e.instances}`);
-    }
-  }
-  return parts.sort().join("|");
-}
-
-function liftV3Instance(v3Inst, siteIds) {
-  // Pre-resolve the mgmt domain's first cluster id so we can default every
-  // workload domain's wldStack placement to "any cluster in the mgmt domain"
-  // without each per-domain map callback having to re-walk the domain list.
-  const mgmtFirstCluId =
-    (v3Inst.domains || []).find((d) => d.type === "mgmt")?.clusters?.[0]?.id || null;
-  return {
-    id: v3Inst.id,
-    name: v3Inst.name,
-    deploymentProfile: v3Inst.deploymentProfile || "ha",
-    siteIds: [...siteIds],
-    witnessEnabled: !!v3Inst.witnessSize && v3Inst.witnessSize !== "None",
-    witnessSize: v3Inst.witnessSize || "Medium",
-    witnessSite: v3Inst.witnessSite || { name: "Witness Site", location: "" },
-    domains: (v3Inst.domains || []).map((d) => {
-      const placement = d.placement || (siteIds.length === 2 ? "stretched" : "local");
-      // v3 had no per-domain site pinning — local domains always lived at the
-      // instance's primary (first) site. Preserve that semantic on migration.
-      const localSiteId =
-        placement === "local"
-          ? (d.localSiteId && siteIds.includes(d.localSiteId) ? d.localSiteId : siteIds[0] || null)
-          : null;
-      // v3 has no wldStack or components placement. Default workload domains
-      // to empty wldStack + "host appliances in mgmt domain's first cluster"
-      // (VCF 9's default behavior). Every wldStack entry is tagged with
-      // ownerDomainId for downstream visibility/attribution.
-      const wldStack =
-        d.type === "workload"
-          ? (d.wldStack || []).map((e) => ({
-              ...e,
-              key: e.key || cryptoKey(),
-              ownerDomainId: e.ownerDomainId || d.id,
-            }))
-          : [];
-      const componentsClusterId =
-        d.type === "workload" ? (d.componentsClusterId || mgmtFirstCluId) : null;
-      // Drop the legacy componentsLocation enum — it existed briefly in v5.1
-      // but is now superseded by componentsClusterId.
-      const { componentsLocation: _legacy, ...rest } = d;
-      return {
-        ...rest,
-        placement,
-        hostSplitPct: typeof d.hostSplitPct === "number" ? d.hostSplitPct : 50,
-        localSiteId,
-        wldStack,
-        componentsClusterId,
-      };
-    }),
-  };
-}
-
-function migrateV3ToV5(v3Fleet) {
-  const sites = (v3Fleet.sites || []).map((s) => ({ id: s.id, name: s.name, location: s.location || "" }));
-  const flat = [];
-  for (const s of v3Fleet.sites || []) {
-    for (const inst of s.instances || []) flat.push({ parentSiteId: s.id, inst });
-  }
-  const consumed = new Set();
-  const instances = [];
-  for (let i = 0; i < flat.length; i++) {
-    if (consumed.has(i)) continue;
-    const { parentSiteId: aSite, inst: A } = flat[i];
-    if (!A.stretched || !A.secondarySiteId) {
-      instances.push(liftV3Instance(A, [aSite])); continue;
-    }
-    let pairIdx = -1;
-    for (let j = i + 1; j < flat.length; j++) {
-      if (consumed.has(j)) continue;
-      const { parentSiteId: bSite, inst: B } = flat[j];
-      if (B.stretched && B.secondarySiteId === aSite && A.secondarySiteId === bSite &&
-          B.name === A.name && domainStructureMatches(A, B)) { pairIdx = j; break; }
-    }
-    if (pairIdx === -1) {
-      console.warn(`[vcf-migrate] ${A.id} marked stretched but no partner found`);
-      instances.push(liftV3Instance(A, [aSite])); continue;
-    }
-    const { parentSiteId: bSite, inst: B } = flat[pairIdx];
-    consumed.add(pairIdx);
-    if (stackSignature(A.domains) !== stackSignature(B.domains)) {
-      console.warn(`[vcf-migrate] stack drift between ${A.id} and ${B.id}; keeping ${A.id} as authoritative`);
-    }
-    instances.push(liftV3Instance(A, [aSite, bSite]));
-  }
-  return { id: v3Fleet.id, name: v3Fleet.name, sites, instances };
-}
-
-function migrateFleet(raw) {
-  if (!raw) return newFleet();
-  const version = raw.version || "vcf-sizer-v3";
-  let fleet = raw.fleet || raw;
-  // Run older versions through their upgrade paths first, then fall through
-  // to the v5 normalization pass so that newly-added host fields
-  // (e.g. hyperthreadingEnabled) are populated regardless of source version.
-  if (version === "vcf-sizer-v2") {
-    const v3 = migrateV2ToV3(fleet);
-    fleet = migrateV3ToV5(v3.fleet || v3);
-  } else if (version !== "vcf-sizer-v5") {
-    fleet = migrateV3ToV5(fleet);
-  }
-  {
-    return {
-      id: fleet.id || "fleet-" + cryptoKey(),
-      name: fleet.name || "Fleet",
-      sites: fleet.sites || [],
-      instances: (fleet.instances || []).map((inst) => {
-        const siteIds = inst.siteIds || [];
-        // Resolve the mgmt domain's first cluster id once per instance so we
-        // can fall back to it for any workload domain that doesn't already
-        // have a valid componentsClusterId pin.
-        const mgmtDom = (inst.domains || []).find((d) => d.type === "mgmt");
-        const mgmtFirstCluId = mgmtDom?.clusters?.[0]?.id || null;
-        const firstWldCluByDomId = {};
-        for (const dom of inst.domains || []) {
-          if (dom.type === "workload") firstWldCluByDomId[dom.id] = dom.clusters?.[0]?.id || null;
-        }
-        return {
-          ...inst,
-          siteIds,
-          domains: (inst.domains || []).map((d) => {
-            const localSiteId =
-              d.placement === "local"
-                ? (d.localSiteId && siteIds.includes(d.localSiteId) ? d.localSiteId : siteIds[0] || null)
-                : null;
-            const wldStack =
-              d.type === "workload"
-                ? (d.wldStack || []).map((e) => ({
-                    ...e,
-                    key: e.key || cryptoKey(),
-                    ownerDomainId: e.ownerDomainId || d.id,
-                  }))
-                : [];
-            // componentsClusterId resolution order:
-            //   1. Keep an existing valid id (v5.2+ round-trip)
-            //   2. Map the legacy v5.1 componentsLocation enum:
-            //        "wld"  → this domain's first cluster
-            //        "mgmt" → mgmt domain's first cluster
-            //   3. Fall back to the mgmt domain's first cluster (v5.0 and
-            //      legacy-free defaults)
-            let componentsClusterId = null;
-            if (d.type === "workload") {
-              if (d.componentsClusterId) {
-                componentsClusterId = d.componentsClusterId;
-              } else if (d.componentsLocation === "wld") {
-                componentsClusterId = firstWldCluByDomId[d.id] || null;
-              } else {
-                componentsClusterId = mgmtFirstCluId;
-              }
-            }
-            // Normalize each cluster's host spec to guarantee fields added in
-            // later v5 revisions (e.g. hyperthreadingEnabled) are present on
-            // imports that predate them. Defaults preserve legacy math.
-            const clusters = (d.clusters || []).map((c) => ({
-              ...c,
-              host: {
-                ...(c.host || {}),
-                hyperthreadingEnabled: c.host?.hyperthreadingEnabled ?? false,
-              },
-            }));
-            // Drop the legacy componentsLocation field on its way out.
-            const { componentsLocation: _legacy, ...rest } = d;
-            return { ...rest, localSiteId, wldStack, componentsClusterId, clusters };
-          }),
-        };
-      }),
-    };
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SIZING ENGINE — pure functions, runs at cluster level then aggregates upward
-// ─────────────────────────────────────────────────────────────────────────────
-function stackTotals(stack) {
-  let vcpu = 0, ram = 0, disk = 0;
-  for (const item of stack) {
-    if (!item.instances) continue;
-    const def = APPLIANCE_DB[item.id];
-    if (!def) continue;
-    const sz = def.sizes[item.size];
-    if (!sz) continue;
-    vcpu += sz.vcpu * item.instances;
-    ram  += sz.ram  * item.instances;
-    disk += sz.disk * item.instances;
-  }
-  return { vcpu, ram, disk };
-}
-
-function sizeHost(host) {
-  const cores = host.cpuQty * host.coresPerCpu;
-  const threads = host.hyperthreadingEnabled ? cores * 2 : cores;
-  const rawGb = host.nvmeQty * host.nvmeSizeTb * 1000;
-  const usableVcpu = threads * host.cpuOversub * (1 - host.reservePct / 100);
-  const usableRam = host.ramGb * host.ramOversub * (1 - host.reservePct / 100);
-  return { cores, threads, rawGb, usableVcpu, usableRam };
-}
-
-function applyTiering(host, hostBase, demandRamGb, tiering) {
-  if (!tiering.enabled) {
-    return {
-      effectiveRamPerHost: hostBase.usableRam,
-      tieredDemandRamGb: demandRamGb,
-      tierPartitionGb: 0,
-      activeRatio: 0,
-    };
-  }
-  const requestedTierGb = host.ramGb * (tiering.nvmePct / 100);
-  const driveCapGb = tiering.tierDriveSizeTb * 1000;
-  const tierPartitionGb = Math.min(requestedTierGb, driveCapGb, NVME_TIER_PARTITION_CAP_GB);
-  const activeRatio = tierPartitionGb / host.ramGb;
-  const effectiveRamPerHost = host.ramGb * (1 + activeRatio) * host.ramOversub *
-    (1 - host.reservePct / 100);
-  const eligible = demandRamGb * (tiering.eligibilityPct / 100);
-  const ineligible = demandRamGb - eligible;
-  const tieredEligible = eligible / (1 + activeRatio);
-  const tieredDemandRamGb = tieredEligible + ineligible;
-  return { effectiveRamPerHost, tieredDemandRamGb, tierPartitionGb, activeRatio };
-}
-
-function sizeStoragePipeline(demandDiskGb, demandRamGb, s) {
-  const drr = s.dedup * s.compression;
-  const vmCapGb = demandDiskGb / drr;
-  const swapGb = demandRamGb * (s.swapPct / 100);
-  const interimGb = vmCapGb + swapGb;
-  const pf = POLICIES[s.policy].pf;
-  const protectedGb = interimGb * pf;
-  const withFreeGb = protectedGb * (1 + s.freePct / 100);
-  const totalReqGb = withFreeGb * (1 + s.growthPct / 100);
-  return { drr, vmCapGb, swapGb, interimGb, pf, protectedGb, withFreeGb, totalReqGb };
-}
-
-// Size a single cluster — this is the leaf-level computation. Demand comes
-// from workload VMs, the cluster's own infraStack (vCLS etc.), and any
-// "injected" appliances from wldStacks that have been relocated here (e.g.
-// a workload domain whose componentsLocation is "mgmt" charges its wldStack
-// to the mgmt cluster via extraStack).
-function sizeCluster(cluster, extraStack = []) {
-  const h = sizeHost(cluster.host);
-  const infra = stackTotals([...(cluster.infraStack || []), ...(extraStack || [])]);
-  const workloadVcpu = (cluster.workload?.vmCount || 0) * (cluster.workload?.vcpuPerVm || 0);
-  const workloadRam = (cluster.workload?.vmCount || 0) * (cluster.workload?.ramPerVm || 0);
-  const workloadDisk = (cluster.workload?.vmCount || 0) * (cluster.workload?.diskPerVm || 0);
-
-  const demandVcpu = workloadVcpu + infra.vcpu;
-  const demandRam = workloadRam + infra.ram;
-  const demandDisk = workloadDisk + infra.disk;
-
-  const tier = applyTiering(cluster.host, h, demandRam, cluster.tiering);
-
-  const cpuHosts = Math.ceil(demandVcpu / h.usableVcpu);
-  const ramHosts = Math.ceil(tier.tieredDemandRamGb / tier.effectiveRamPerHost);
-
-  const policy = POLICIES[cluster.storage.policy];
-  let storageHosts = 0;
-  let pipeline = null;
-  if (!cluster.storage.externalStorage) {
-    pipeline = sizeStoragePipeline(demandDisk, demandRam, cluster.storage);
-    storageHosts = Math.ceil(pipeline.totalReqGb / h.rawGb) + policy.ftt;
-  }
-
-  const manualOverride = Math.max(0, cluster.hostOverride || 0);
-  const candidates = [
-    { name: "Compute", val: cpuHosts },
-    { name: "Memory", val: ramHosts },
-    { name: "Policy", val: policy.minHosts },
-    { name: "Manual", val: manualOverride },
-  ];
-  if (!cluster.storage.externalStorage) {
-    candidates.push({ name: "Storage", val: storageHosts });
-  }
-
-  const finalHosts = Math.max(...candidates.map((c) => c.val));
-  const limiter = candidates.find((c) => c.val === finalHosts).name;
-
-  const vsanMinWarning =
-    !cluster.storage.externalStorage &&
-    finalHosts === 3 &&
-    policy.minHosts <= 3;
-
-  return {
-    host: h,
-    demand: { vcpu: demandVcpu, ram: demandRam, disk: demandDisk },
-    tier,
-    floors: { cpuHosts, ramHosts, storageHosts, policyMin: policy.minHosts, manualOverride },
-    pipeline,
-    finalHosts,
-    limiter,
-    licensedCores: finalHosts * h.cores,
-    rawTib: cluster.storage.externalStorage
-      ? 0
-      : finalHosts * cluster.host.nvmeQty * cluster.host.nvmeSizeTb * TB_TO_TIB,
-    externalStorage: cluster.storage.externalStorage,
-    vsanMinWarning,
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// STRETCHED-CLUSTER FAILOVER ANALYSIS — pure function
-//
-// Given a cluster result from sizeCluster and the cluster's current
-// hostSplitPct, determine whether each site on its own could absorb the
-// FULL cluster demand after the other site is lost.
-//
-// The full-cluster demand (vCPU / RAM / disk / raw storage) is already the
-// sum across both sites — sizeCluster doesn't split it. What changes on
-// failover is the number of surviving hosts: if hostSplitPct is 60, site A
-// has ceil(finalHosts * 0.60) hosts and site B has finalHosts - that. The
-// survivor's capacity is its-host-count × per-host-capacity.
-//
-// Three verdicts:
-//   green  : survivor has enough SAFE capacity (respecting reservePct /
-//            oversub / policy minHosts / storage policy FTT on full demand).
-//            Design is truly HA.
-//   yellow : survivor has enough RAW oversubscribed capacity but only by
-//            eating into the configured reserve slack. Everything runs but
-//            there is no headroom — the failover burns the reserve.
-//   red    : even at zero reserve the survivor cannot host the demand, OR
-//            the survivor falls below the storage policy's minHosts floor,
-//            OR the storage pipeline requires more raw capacity than the
-//            survivor can provide. Components cannot all run at one site.
-//
-// Storage verdict: on failover, the storage policy still applies (vSAN still
-// needs FTT hosts of capacity), so we rerun the same sizeStoragePipeline
-// call against the survivor's per-host raw capacity and compare required
-// host counts.
-//
-// Returns one verdict PER stretched cluster, so a stretched mgmt cluster
-// that comfortably survives with 60/40 but a stretched WLD cluster that
-// can't survive 50/50 produces two different rollups.
-// ─────────────────────────────────────────────────────────────────────────────
-function analyzeStretchedFailover(cluster, result, hostSplitPct) {
-  const pct = typeof hostSplitPct === "number" ? hostSplitPct : 50;
-  const full = result.finalHosts;
-  const hostsA = Math.max(0, Math.ceil(full * (pct / 100)));
-  const hostsB = Math.max(0, full - hostsA);
-  const h = result.host;
-  const tier = result.tier;
-  const policy = POLICIES[cluster.storage.policy];
-
-  // Per-host "safe" capacity (what sizeCluster used to pick finalHosts).
-  const safeVcpuPerHost = h.usableVcpu;
-  const safeRamPerHost  = tier.effectiveRamPerHost;
-  // Per-host "raw-oversubscribed" capacity: cores × oversub (no reserve
-  // removed). This is the true compute ceiling a host can sustain briefly.
-  const rawVcpuPerHost = h.cores * cluster.host.cpuOversub;
-  const rawRamPerHost  = (tier.effectiveRamPerHost /
-                          Math.max(1e-9, 1 - cluster.host.reservePct / 100));
-
-  // Run the storage pipeline once for the full (unchanged) demand so we can
-  // compare against each survivor's raw capacity.
-  const storagePerHost = cluster.host.nvmeQty * cluster.host.nvmeSizeTb * 1000;
-  let storageHostsNeeded = 0;
-  if (!cluster.storage.externalStorage && result.pipeline) {
-    storageHostsNeeded = Math.ceil(result.pipeline.totalReqGb / Math.max(1, storagePerHost)) + policy.ftt;
-  }
-
-  function verdictFor(survHosts) {
-    if (survHosts <= 0) {
-      return { verdict: "red", reason: "Survivor has 0 hosts", hosts: 0 };
-    }
-    if (survHosts < policy.minHosts) {
-      return {
-        verdict: "red",
-        reason: `Survivor has ${survHosts} host${survHosts === 1 ? "" : "s"}, below storage policy minimum (${policy.minHosts})`,
-        hosts: survHosts,
-      };
-    }
-    if (!cluster.storage.externalStorage && survHosts < storageHostsNeeded) {
-      return {
-        verdict: "red",
-        reason: `Survivor needs ${storageHostsNeeded} hosts of vSAN capacity, has ${survHosts}`,
-        hosts: survHosts,
-      };
-    }
-    const safeVcpu = survHosts * safeVcpuPerHost;
-    const safeRam  = survHosts * safeRamPerHost;
-    const rawVcpu  = survHosts * rawVcpuPerHost;
-    const rawRam   = survHosts * rawRamPerHost;
-    const demand = result.demand;
-    const demandRamTiered = tier.tieredDemandRamGb;
-
-    const safeOk = demand.vcpu <= safeVcpu && demandRamTiered <= safeRam;
-    if (safeOk) {
-      return {
-        verdict: "green",
-        reason: "Survivor absorbs full demand within safe reserves",
-        hosts: survHosts,
-        vcpuUsedPct: Math.round((demand.vcpu / Math.max(1, safeVcpu)) * 100),
-        ramUsedPct:  Math.round((demandRamTiered / Math.max(1, safeRam)) * 100),
-      };
-    }
-    const rawOk = demand.vcpu <= rawVcpu && demandRamTiered <= rawRam;
-    if (rawOk) {
-      const vcpuPctRaw = Math.round((demand.vcpu / Math.max(1, rawVcpu)) * 100);
-      const ramPctRaw  = Math.round((demandRamTiered / Math.max(1, rawRam)) * 100);
-      return {
-        verdict: "yellow",
-        reason: "Survivor runs everything but only by consuming the configured reserve slack",
-        hosts: survHosts,
-        vcpuUsedPct: vcpuPctRaw,
-        ramUsedPct: ramPctRaw,
-      };
-    }
-    const overVcpu = demand.vcpu > rawVcpu;
-    const overRam  = demandRamTiered > rawRam;
-    const parts = [];
-    if (overVcpu) parts.push(`vCPU short (${fmt(demand.vcpu)} need / ${fmt(rawVcpu)} avail)`);
-    if (overRam)  parts.push(`RAM short (${fmt(demandRamTiered)} GB need / ${fmt(rawRam)} GB avail)`);
-    return {
-      verdict: "red",
-      reason: parts.join(", ") || "Survivor cannot absorb demand",
-      hosts: survHosts,
-    };
-  }
-
-  return {
-    hostsA,
-    hostsB,
-    siteA: verdictFor(hostsA),
-    siteB: verdictFor(hostsB),
-  };
-}
-
-// Find the smallest total host count at which BOTH sites achieve at least
-// the target verdict. Used by the ClusterCard failover target toggles so
-// users can click "Survive failover" and have the host-count floor jump
-// to a number that flips both sides green without them having to hunt.
-//
-// Iterates from the architectural minimum upward (monotonic — adding hosts
-// only ever improves the verdict). Returns null if no reasonable host
-// count satisfies the target (shouldn't happen for sensible configs, but
-// the caller treats null as "impossible" and disables the button).
-function minHostsForVerdict(cluster, result, hostSplitPct, targetVerdict) {
-  const order = { green: 0, yellow: 1, red: 2 };
-  const targetMax = order[targetVerdict];
-  const archMin = Math.max(
-    result.floors.cpuHosts || 0,
-    result.floors.ramHosts || 0,
-    result.floors.storageHosts || 0,
-    result.floors.policyMin || 0,
-    1
-  );
-  const cap = Math.max(archMin * 20, 200);
-  for (let n = archMin; n <= cap; n++) {
-    // Synthesize a result with the candidate host count. analyzeStretchedFailover
-    // only reads finalHosts / host / tier / demand / pipeline from the result,
-    // and none of those change with the override — so we can safely substitute
-    // finalHosts without re-running sizeCluster.
-    const simulated = { ...result, finalHosts: n };
-    const fo = analyzeStretchedFailover(cluster, simulated, hostSplitPct);
-    if (order[fo.siteA.verdict] <= targetMax && order[fo.siteB.verdict] <= targetMax) {
-      return n;
-    }
-  }
-  return null;
-}
-
-// Aggregate cluster results up to domain level. `extraByClusterId` optionally
-// injects additional appliance demand onto specific clusters (built by
-// sizeInstance from wldStack componentsLocation decisions).
-//
-// `instanceIsStretched` + the domain's own `placement` decide whether we
-// compute a per-cluster failover analysis. Local domains and single-site
-// instances get `failover: null`.
-function sizeDomain(domain, extraByClusterId = {}, instanceIsStretched = false) {
-  const domainIsStretched = instanceIsStretched && domain.placement === "stretched";
-  const clusterResults = domain.clusters.map((c) => {
-    const r = sizeCluster(c, extraByClusterId[c.id] || []);
-    if (domainIsStretched) {
-      r.failover = analyzeStretchedFailover(c, r, domain.hostSplitPct);
-    } else {
-      r.failover = null;
-    }
-    return r;
-  });
-  const totalHosts = clusterResults.reduce((s, r) => s + r.finalHosts, 0);
-  const totalCores = clusterResults.reduce((s, r) => s + r.licensedCores, 0);
-  const totalRawTib = clusterResults.reduce((s, r) => s + r.rawTib, 0);
-  return { clusterResults, totalHosts, totalCores, totalRawTib };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// v5 SIZING — instance-first, site-projected
-// ─────────────────────────────────────────────────────────────────────────────
-function sizeInstance(instance) {
-  // Step 1: build a per-cluster-id map of "extra" appliance demand that
-  // should be injected into specific clusters based on each workload
-  // domain's componentsClusterId pin.
-  //
-  // componentsClusterId can point at ANY cluster in the instance — any of
-  // the mgmt domain's 1+ clusters, or any of this workload domain's own
-  // clusters. If the pin is missing or references a cluster that no longer
-  // exists (e.g. it was deleted after being selected), we fall back to the
-  // mgmt domain's first cluster, matching VCF 9's default placement.
-  //
-  // Either way the wldStack entries are listed ONCE in sharedStack so the
-  // Shared Appliances panel still shows the full appliance inventory.
-  const clusterById = {};
-  for (const dom of instance.domains || []) {
-    for (const c of dom.clusters || []) clusterById[c.id] = c;
-  }
-  const mgmtDomain = (instance.domains || []).find((d) => d.type === "mgmt");
-  const mgmtFirstCluster = mgmtDomain?.clusters?.[0];
-
-  const extraByClusterId = {};
-  for (const d of instance.domains || []) {
-    if (d.type !== "workload") continue;
-    const wldStack = d.wldStack || [];
-    if (wldStack.length === 0) continue;
-    const targetCluster = clusterById[d.componentsClusterId] || mgmtFirstCluster;
-    if (!targetCluster) continue;
-    extraByClusterId[targetCluster.id] = [
-      ...(extraByClusterId[targetCluster.id] || []),
-      ...wldStack,
-    ];
-  }
-
-  const instanceIsStretched = (instance.siteIds || []).length === 2;
-  const domainResults = (instance.domains || []).map((d) =>
-    sizeDomain(d, extraByClusterId, instanceIsStretched)
-  );
-  const sharedStack = [];
-  for (const d of instance.domains || []) {
-    for (const c of d.clusters || []) {
-      for (const e of c.infraStack || []) sharedStack.push(e);
-    }
-    if (d.type === "workload") {
-      for (const e of d.wldStack || []) sharedStack.push(e);
-    }
-  }
-  const sharedTotals = stackTotals(sharedStack);
-  let witness = null;
-  if (instance.witnessEnabled && (instance.siteIds || []).length === 2) {
-    const wDef = APPLIANCE_DB.vsanWitness;
-    const wSz = wDef?.sizes?.[instance.witnessSize] || wDef?.sizes?.Medium;
-    const stretchedClusters = (instance.domains || []).reduce(
-      (acc, d) => acc + (d.placement === "stretched" ? (d.clusters || []).length : 0),
-      0
-    );
-    if (wSz && stretchedClusters > 0) {
-      witness = {
-        id: "vsanWitness",
-        size: instance.witnessSize,
-        instances: stretchedClusters,
-        vcpu: wSz.vcpu * stretchedClusters,
-        ram: wSz.ram * stretchedClusters,
-        disk: wSz.disk * stretchedClusters,
-      };
-    }
-  }
-  const totalHosts = domainResults.reduce((s, r) => s + r.totalHosts, 0);
-  const totalCores = domainResults.reduce((s, r) => s + r.totalCores, 0);
-  const totalRawTib = domainResults.reduce((s, r) => s + r.totalRawTib, 0);
-  return { instance, domainResults, sharedStack, sharedTotals, witness, totalHosts, totalCores, totalRawTib };
-}
-
-function projectInstanceOntoSite(instanceResult, siteId) {
-  const { instance, domainResults } = instanceResult;
-  const isPrimary = instance.siteIds[0] === siteId;
-  const isSecondary = instance.siteIds[1] === siteId;
-  if (!isPrimary && !isSecondary) return null;
-  const projectedDomains = [];
-  for (let i = 0; i < domainResults.length; i++) {
-    const dr = domainResults[i];
-    const domain = instance.domains[i];
-    const stretched = domain.placement === "stretched" && instance.siteIds.length === 2;
-    if (!stretched) {
-      // Local domain — pinned to one specific site via localSiteId. Fall back
-      // to siteIds[0] for backward compatibility with pre-v5.1 data (where
-      // local always meant "primary site only").
-      const localSite =
-        domain.localSiteId && instance.siteIds.includes(domain.localSiteId)
-          ? domain.localSiteId
-          : instance.siteIds[0];
-      if (localSite !== siteId) continue;
-      projectedDomains.push({
-        domain, domainResult: dr, sharePct: 100,
-        projectedClusters: dr.clusterResults.map((cr, idx) => ({
-          cluster: domain.clusters[idx], result: cr,
-          hostsHere: cr.finalHosts, rawTibHere: cr.rawTib,
-        })),
-      });
-      continue;
-    }
-    const pct = typeof domain.hostSplitPct === "number" ? domain.hostSplitPct : 50;
-    const sharePct = isPrimary ? pct : 100 - pct;
-    const frac = sharePct / 100;
-    projectedDomains.push({
-      domain, domainResult: dr, sharePct,
-      projectedClusters: dr.clusterResults.map((cr, idx) => {
-        // Host count split: the primary site gets ceil(full * pct/100) and
-        // the secondary site gets `full - primary` so the two sites always
-        // sum EXACTLY to finalHosts. The previous version independently
-        // ceil'd both fractions, which for odd host counts produced
-        // primary+secondary === finalHosts+1 — the extra phantom host
-        // surfaced in fleet totalHosts rollups and masked single-host
-        // increments from the manual override control.
-        const full = cr.finalHosts || 0;
-        const primaryHosts = Math.ceil(full * (pct / 100));
-        const secondaryHosts = full - primaryHosts;
-        const hostsHere = isPrimary ? primaryHosts : secondaryHosts;
-        return {
-          cluster: domain.clusters[idx], result: cr,
-          hostsHere,
-          rawTibHere: (cr.rawTib || 0) * frac,
-        };
-      }),
-    });
-  }
-  return {
-    siteId, instance,
-    role: isPrimary ? "primary" : "secondary",
-    otherSiteId: instance.siteIds.length === 2 ? instance.siteIds[isPrimary ? 1 : 0] : null,
-    projectedDomains,
-  };
-}
-
-function sizeFleet(fleet) {
-  const instanceResults = (fleet.instances || []).map(sizeInstance);
-  const siteResults = (fleet.sites || []).map((site) => ({
-    site,
-    projections: instanceResults
-      .filter((ir) => ir.instance.siteIds.includes(site.id))
-      .map((ir) => projectInstanceOntoSite(ir, site.id))
-      .filter(Boolean),
-  }));
-  let totalVcpu = 0, totalRamGb = 0, totalDiskGb = 0;
-  for (const ir of instanceResults) {
-    totalVcpu += ir.sharedTotals.vcpu;
-    totalRamGb += ir.sharedTotals.ram;
-    totalDiskGb += ir.sharedTotals.disk;
-    if (ir.witness) {
-      totalVcpu += ir.witness.vcpu || 0;
-      totalRamGb += ir.witness.ram || 0;
-      totalDiskGb += ir.witness.disk || 0;
-    }
-  }
-  let totalHosts = 0, fleetRawTib = 0, totalCores = 0;
-  for (const ir of instanceResults) {
-    fleetRawTib += ir.totalRawTib || 0;
-    totalCores  += ir.totalCores  || 0;
-  }
-  for (const sr of siteResults) {
-    for (const p of sr.projections) {
-      for (const pd of p.projectedDomains) {
-        for (const pc of pd.projectedClusters) totalHosts += pc.hostsHere;
-      }
-    }
-  }
-  const entitlementTib = totalCores * TIB_PER_CORE;
-  const addonTib = Math.max(0, fleetRawTib - entitlementTib);
-  return {
-    fleet, instanceResults, siteResults,
-    totalHosts, totalCores, fleetRawTib, entitlementTib, addonTib,
-    totals: { vcpu: totalVcpu, ramGb: totalRamGb, diskGb: totalDiskGb, hosts: totalHosts },
-  };
-}
 
 function PerSiteView({ fleet, fleetResult }) {
   // Shared Appliances rows — each instance's sharedStack listed once,
@@ -1578,7 +189,7 @@ function PerSiteView({ fleet, fleetResult }) {
           </p>
         )}
 
-        {(fleetResult.siteResults || []).map((sr) => {
+        {(fleetResult.siteResults || []).map((sr, srIdx, allSrs) => {
           // Skip projections that contributed no domains at this site (e.g.
           // an instance touching the site but with every domain pinned to
           // the other site via localSiteId).
@@ -1642,11 +253,36 @@ function PerSiteView({ fleet, fleetResult }) {
             : worstVerdict === "yellow" ? "⚠"
             : worstVerdict === "red" ? "✕" : "";
 
+          // VCF-TOPO-004 region grouping: emit a region header when the
+          // current region differs from the previous site's region. Sites
+          // without a region fall under "(ungrouped)". Headers are only
+          // shown when any site declares a non-empty region — single-region
+          // fleets keep the flat layout.
+          const anyRegion = allSrs.some((x) => (x.site?.region || "").trim());
+          const currentRegion = (sr.site?.region || "").trim() || "(ungrouped)";
+          const prevRegion = srIdx > 0
+            ? ((allSrs[srIdx - 1].site?.region || "").trim() || "(ungrouped)")
+            : null;
+          const regionHeader = (anyRegion && currentRegion !== prevRegion) ? (
+            <div className="mt-4 mb-2 text-[10px] uppercase tracking-[0.2em] text-slate-400 font-mono border-b border-slate-200 pb-1">
+              Region: {currentRegion}
+            </div>
+          ) : null;
+
           return (
-            <div key={sr.site.id} className="border border-slate-200 rounded-lg p-4 mb-4 bg-white">
+            <React.Fragment key={sr.site.id}>
+              {regionHeader}
+            <div className="border border-slate-200 rounded-lg p-4 mb-4 bg-white">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="text-lg font-serif text-slate-900">{sr.site.name}</h3>
+                  <h3 className="text-lg font-serif text-slate-900">
+                    {sr.site.name}
+                    {sr.site.siteRole && (
+                      <span className="ml-2 text-[10px] uppercase tracking-wider text-slate-400 font-mono border border-slate-200 rounded px-1.5 py-0.5">
+                        {sr.site.siteRole}
+                      </span>
+                    )}
+                  </h3>
                   {sr.site.location && (
                     <span className="text-sm text-slate-500">{sr.site.location}</span>
                   )}
@@ -1756,6 +392,7 @@ function PerSiteView({ fleet, fleetResult }) {
                 })
               )}
             </div>
+            </React.Fragment>
           );
         })}
       </div>
@@ -1974,6 +611,17 @@ function StackPicker({ stack, onChange, isMgmtCluster, defaultInstancesById, all
                           ⚑ typ-in-WLD
                         </span>
                       )}
+                      {def.dualRole && (
+                        <select
+                          value={item.role || (isMgmtCluster ? "mgmt" : "wld")}
+                          onChange={(e) => updateItem(idx, { role: e.target.value })}
+                          className="text-[9px] uppercase tracking-wider font-mono bg-white border border-slate-200 rounded px-1 py-0.5 text-slate-700"
+                          title={`VCF-APP-002/003 and VCF-APP-004/005: declare whether this ${def.label} instance serves the management plane or a workload domain. Drives placement/sharing invariants.`}
+                        >
+                          <option value="mgmt">role: mgmt</option>
+                          <option value="wld">role: wld</option>
+                        </select>
+                      )}
                     </div>
                   </td>
                   <td className="py-2 pr-3">
@@ -2102,6 +750,19 @@ function ClusterCard({ cluster, onChange, onRemove, canRemove, result, isMgmtClu
   const updateWorkload = (patch) => onChange({ ...cluster, workload: { ...cluster.workload, ...patch } });
   const updateStorage = (patch) => onChange({ ...cluster, storage: { ...cluster.storage, ...patch } });
   const updateTiering = (patch) => onChange({ ...cluster, tiering: { ...cluster.tiering, ...patch } });
+  const t0s = cluster.t0Gateways || [];
+  const addT0 = () => onChange({ ...cluster, t0Gateways: [...t0s, newT0Gateway(`t0-${t0s.length + 1}`)] });
+  const updateT0 = (idx, patch) => onChange({ ...cluster, t0Gateways: t0s.map((t, i) => i === idx ? { ...t, ...patch } : t) });
+  const removeT0 = (idx) => onChange({ ...cluster, t0Gateways: t0s.filter((_, i) => i !== idx) });
+  const toggleT0Edge = (idx, key) => {
+    const t0 = t0s[idx];
+    const nextKeys = (t0.edgeNodeKeys || []).includes(key)
+      ? t0.edgeNodeKeys.filter((k) => k !== key)
+      : [...(t0.edgeNodeKeys || []), key];
+    updateT0(idx, { edgeNodeKeys: nextKeys });
+  };
+  const edgeEntries = (cluster.infraStack || []).filter((e) => e.id === "nsxEdge" && e.key);
+  const t0Issues = validateT0Gateways(cluster);
 
   const limiterColor = {
     Compute: "text-sky-700",
@@ -2128,6 +789,26 @@ function ClusterCard({ cluster, onChange, onRemove, canRemove, result, isMgmtClu
               Default
             </span>
           )}
+          {cluster.preExisting && (
+            <span
+              className="text-[9px] uppercase tracking-wider text-stone-600 font-mono border border-stone-300 bg-stone-50 rounded px-1.5 py-0.5"
+              title="VCF-PATH-003: this cluster pre-existed and is being converged into the VCF fleet rather than deployed fresh."
+            >
+              ≋ Existing
+            </span>
+          )}
+          <label
+            className="text-[9px] uppercase tracking-wider text-slate-400 font-mono cursor-pointer flex items-center gap-1"
+            title="Mark this cluster as pre-existing (converge pathway). The sizing engine still computes resources, but the cluster is flagged as brownfield for capex/reporting."
+          >
+            <input
+              type="checkbox"
+              checked={!!cluster.preExisting}
+              onChange={(e) => update({ preExisting: e.target.checked })}
+              className="accent-stone-500"
+            />
+            pre-existing
+          </label>
           {result.failover && (() => {
             // Compact header badge summarizing the stretched-cluster
             // failover verdict. Full detail is rendered lower in the card
@@ -2491,6 +1172,154 @@ function ClusterCard({ cluster, onChange, onRemove, canRemove, result, isMgmtClu
             )}
           </Section>
           )}
+
+          {/* T0 Gateway editor — VCF-APP-006 / VCF-INV-060..065 */}
+          <Section title="T0 Gateways (NSX Edge topology)" right={
+            <button
+              onClick={addT0}
+              className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hover:text-sky-700 border border-dashed border-slate-200 hover:border-sky-400 rounded px-2 py-0.5"
+              title="Add a new Tier-0 gateway. Bind nsxEdge stack entries to it below."
+            >
+              + Add T0
+            </button>
+          }>
+            {/* Edge cluster deployment model — VCF-APP-006 §"Deployment Models" */}
+            <div className="flex items-center gap-2 flex-wrap mb-3">
+              <label className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono">
+                Edge Deployment Model
+              </label>
+              <select
+                value={cluster.edgeDeploymentModel || ""}
+                onChange={(e) => update({ edgeDeploymentModel: e.target.value || null })}
+                className="text-[11px] font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
+                title="VCF-APP-006: NSX Edge cluster topology. Informational — drives DC layout expectations, not sizing."
+              >
+                <option value="">— unspecified —</option>
+                {Object.entries(EDGE_DEPLOYMENT_MODELS).map(([key, def]) => (
+                  <option key={key} value={key}>{def.label} ({def.ruleId})</option>
+                ))}
+              </select>
+              {cluster.edgeDeploymentModel && (
+                <span className="text-[10px] text-slate-500 italic font-mono max-w-lg">
+                  {EDGE_DEPLOYMENT_MODELS[cluster.edgeDeploymentModel]?.description}
+                </span>
+              )}
+            </div>
+            {t0s.length === 0 ? (
+              <p className="text-[10px] text-slate-400 font-mono">
+                No T0 gateways defined on this cluster. Add one and bind nsxEdge stack entries.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {t0s.map((t0, idx) => {
+                  const mode = T0_HA_MODES[t0.haMode];
+                  return (
+                    <div key={t0.id} className="border border-slate-200 rounded p-2 bg-slate-50">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <input
+                          value={t0.name}
+                          onChange={(e) => updateT0(idx, { name: e.target.value })}
+                          className="text-xs font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-800 w-32"
+                        />
+                        <select
+                          value={t0.haMode}
+                          onChange={(e) => updateT0(idx, { haMode: e.target.value })}
+                          className="text-[11px] font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
+                          title={`VCF-APP-006-T0-* — ${mode?.description || ""}`}
+                        >
+                          {Object.entries(T0_HA_MODES).map(([key, def]) => (
+                            <option key={key} value={key}>{def.label} (max {def.maxEdgeNodes})</option>
+                          ))}
+                        </select>
+                        {t0.haMode === "active-active" && (
+                          <label className="flex items-center gap-1 text-[10px] font-mono text-slate-600 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!t0.stateful}
+                              onChange={(e) => updateT0(idx, { stateful: e.target.checked })}
+                              className="accent-blue-600"
+                            />
+                            Stateful (Day-2)
+                          </label>
+                        )}
+                        <label className="flex items-center gap-1 text-[10px] font-mono text-slate-600 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!t0.bgpEnabled}
+                            onChange={(e) => updateT0(idx, { bgpEnabled: e.target.checked })}
+                            className="accent-blue-600"
+                          />
+                          BGP
+                        </label>
+                        <button
+                          onClick={() => removeT0(idx)}
+                          className="text-slate-400 hover:text-rose-600 text-sm px-1"
+                          aria-label="Remove T0"
+                        >×</button>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">Edge Nodes</span>
+                        {edgeEntries.length === 0 ? (
+                          <span className="text-[10px] text-slate-400 font-mono italic">No nsxEdge entries on this cluster — add one in the Appliances table above.</span>
+                        ) : edgeEntries.map((ee) => {
+                          const selected = (t0.edgeNodeKeys || []).includes(ee.key);
+                          return (
+                            <button
+                              key={ee.key}
+                              onClick={() => toggleT0Edge(idx, ee.key)}
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                                selected
+                                  ? "bg-sky-600 text-white border-sky-600"
+                                  : "bg-white text-slate-600 border-slate-200 hover:border-sky-400"
+                              }`}
+                            >
+                              {ee.size} ×{ee.instances}
+                            </button>
+                          );
+                        })}
+                        <span className="text-[10px] text-slate-500 font-mono ml-2">
+                          bound: {(t0.edgeNodeKeys || []).length} / max {mode?.maxEdgeNodes ?? "?"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-500 font-mono">Required For</span>
+                        {["vks", "vcfAutomationAllApps"].map((feat) => {
+                          const on = (t0.featureRequirements || []).includes(feat);
+                          return (
+                            <button
+                              key={feat}
+                              onClick={() => updateT0(idx, {
+                                featureRequirements: on
+                                  ? (t0.featureRequirements || []).filter((f) => f !== feat)
+                                  : [...(t0.featureRequirements || []), feat],
+                              })}
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                                on
+                                  ? "bg-amber-500 text-white border-amber-500"
+                                  : "bg-white text-slate-600 border-slate-200 hover:border-amber-400"
+                              }`}
+                              title={feat === "vks" ? "vSphere Supervisor (VKS) requires Active/Standby T0" : "VCF Automation All Apps requires Active/Standby T0"}
+                            >
+                              {feat === "vks" ? "VKS" : "Auto All-Apps"}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+                {t0Issues.length > 0 && (
+                  <div className="border border-rose-300 bg-rose-50 rounded p-2 space-y-1">
+                    {t0Issues.map((issue, i) => (
+                      <div key={i} className={`text-[10px] font-mono ${issue.severity === "critical" ? "text-rose-700" : "text-amber-700"}`}>
+                        <span className="font-semibold">{issue.ruleId}</span> · {issue.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </Section>
         </div>
 
         {/* RIGHT: results */}
@@ -2899,7 +1728,7 @@ function DomainCard({ domain, isStretched, instanceSiteIds, allSites, eligibleCl
 // ─────────────────────────────────────────────────────────────────────────────
 // INSTANCE CARD — VCF instance, contains 1 mgmt + N workload domains
 // ─────────────────────────────────────────────────────────────────────────────
-function InstanceCard({ instance, allSites, onChange, onRemove, canRemove, result }) {
+function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, canRemove, result, isInitial, canPromote, onPromoteToInitial }) {
   const isStretchedInstance = (instance.siteIds || []).length === 2;
   const siteById = (id) => (allSites || []).find((s) => s.id === id);
   const update = (patch) => onChange({ ...instance, ...patch });
@@ -2929,7 +1758,14 @@ function InstanceCard({ instance, allSites, onChange, onRemove, canRemove, resul
   const applyProfile = (profileKey) => {
     const profile = DEPLOYMENT_PROFILES[profileKey];
     if (!profile) return;
-    const newStack = profile.stack.map((s) => ({ ...s, key: cryptoKey() }));
+    // VCF-INV-011 / VCF-APP-010/012/013/014/020: per-fleet appliances
+    // (VCF Operations, Fleet Manager, Logs, Networks Platform, Automation)
+    // deploy exactly once across a fleet, on the INITIAL instance's mgmt
+    // domain initial cluster. Non-initial instances must carry the same
+    // profile minus those per-fleet entries — this is what
+    // stackForInstance(profileKey, false) returns.
+    const filteredStack = stackForInstance(profileKey, !!isInitial);
+    const newStack = filteredStack.map((s) => ({ ...s, key: cryptoKey() }));
     const newDomains = instance.domains.map((d) => {
       if (d.type !== "mgmt") return d;
       const newClusters = d.clusters.map((c, idx) => {
@@ -3023,6 +1859,31 @@ function InstanceCard({ instance, allSites, onChange, onRemove, canRemove, resul
             onChange={(e) => update({ name: e.target.value })}
             className="bg-transparent text-xl text-slate-800 font-serif border-none focus:outline-none focus:bg-slate-50 rounded px-1"
           />
+          {isInitial && (
+            <span
+              className="text-[9px] uppercase tracking-[0.14em] font-mono font-semibold px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800"
+              title="VCF-INV-011: this instance is the fleet's initial instance — per-fleet appliances (VCF Operations, Automation, Fleet Manager, Logs, Networks Platform) live here."
+            >
+              ★ INITIAL
+            </span>
+          )}
+          {canPromote && onPromoteToInitial && (
+            <button
+              onClick={onPromoteToInitial}
+              className="text-[9px] uppercase tracking-wider text-slate-400 hover:text-amber-700 border border-slate-200 hover:border-amber-400 rounded px-1.5 py-0.5 font-mono"
+              title="VCF-INV-011: promote this instance to initial. The fleet's per-fleet appliances (VCF Operations, Automation, Fleet Manager, Logs, Networks Platform) automatically move to this instance's mgmt cluster; the demoted instance's mgmt stack is re-derived without them."
+            >
+              ↑ Promote to initial
+            </button>
+          )}
+          {instance.drPosture === "warm-standby" && (
+            <span
+              className="text-[9px] uppercase tracking-[0.14em] font-mono font-semibold px-1.5 py-0.5 rounded border border-violet-300 bg-violet-50 text-violet-800"
+              title="VCF-DR-001: this instance is a warm-standby replica. Fleet-level services are dormant until failover (VCF-DR-040)."
+            >
+              ⛨ WARM STANDBY
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[10px] text-slate-400 font-mono">
@@ -3070,12 +1931,66 @@ function InstanceCard({ instance, allSites, onChange, onRemove, canRemove, resul
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-mono text-slate-400">
           {currentProfile.stack.map((item) => {
             const def = APPLIANCE_DB[item.id];
-            return def ? (
-              <span key={item.id}>
+            if (!def) return null;
+            // VCF-INV-011: per-fleet appliances (vcfOps, vcfAuto, fleetMgr,
+            // vcfOpsLogs, vcfOpsNet) render only on the initial instance.
+            // On non-initial instances they're crossed out in the preview so
+            // the user can SEE they've been filtered (not silently dropped).
+            const isPerFleet = def.scope === "per-fleet";
+            const filteredOut = isPerFleet && !isInitial;
+            return (
+              <span
+                key={item.id}
+                className={filteredOut ? "line-through text-slate-300" : ""}
+                title={filteredOut
+                  ? `${def.label} is scope=per-fleet (${def.ruleId}); lives only on the initial instance per VCF-INV-011. Not added to this stack.`
+                  : isPerFleet
+                    ? `${def.label} is scope=per-fleet (${def.ruleId}) — this is the initial instance, so it lives here.`
+                    : def.label}
+              >
                 {def.label} <span className="text-slate-600">×{item.instances}</span>
               </span>
-            ) : null;
+            );
           })}
+        </div>
+        {!isInitial && currentProfile.stack.some((item) => APPLIANCE_DB[item.id]?.scope === "per-fleet") && (
+          <p className="mt-1 text-[10px] font-mono text-amber-700 italic">
+            ★ This is a non-initial instance — per-fleet appliances (struck through) are hosted on the initial instance per VCF-INV-011.
+          </p>
+        )}
+        {/* DR posture + pair picker — VCF-DR-001..050 */}
+        <div className="mt-3 pt-3 border-t border-sky-200 flex items-center gap-3 flex-wrap">
+          <label className="text-[10px] uppercase tracking-[0.14em] text-sky-800 font-mono font-semibold">
+            DR Posture
+          </label>
+          <select
+            value={instance.drPosture || "active"}
+            onChange={(e) => update({ drPosture: e.target.value, drPairedInstanceId: e.target.value === "active" ? null : instance.drPairedInstanceId })}
+            className="text-xs font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-700 focus:outline-none focus:border-violet-400"
+            title="VCF-DR-001: declare this instance's steady-state role. Warm-standby instances carry replicated fleet services that activate only on failover."
+          >
+            {Object.entries(DR_POSTURES).map(([key, def]) => (
+              <option key={key} value={key}>{def.label}{def.ruleId ? ` (${def.ruleId})` : ""}</option>
+            ))}
+          </select>
+          {instance.drPosture === "warm-standby" && (
+            <>
+              <label className="text-[10px] uppercase tracking-[0.14em] text-sky-800 font-mono">Paired With</label>
+              <select
+                value={instance.drPairedInstanceId || ""}
+                onChange={(e) => update({ drPairedInstanceId: e.target.value || null })}
+                className="text-xs font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-700 focus:outline-none focus:border-violet-400"
+              >
+                <option value="">— select primary —</option>
+                {(allInstances || []).filter((x) => x.id !== instance.id).map((x) => (
+                  <option key={x.id} value={x.id}>{x.name}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-violet-700 font-mono italic">
+                Replicated via VLR: {DR_REPLICATED_COMPONENTS.join(", ")} · Backup/restore: {DR_BACKUP_COMPONENTS.join(", ")}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -3164,6 +2079,32 @@ function InstanceCard({ instance, allSites, onChange, onRemove, canRemove, resul
                 placeholder="e.g. Azure East US"
               />
             </div>
+            {/* VCF-APP-080: optionally reference a fleet site (siteRole=witness) instead. */}
+            {(() => {
+              const witnessSites = (allSites || []).filter((s) => s.siteRole === "witness");
+              if (witnessSites.length === 0) return (
+                <p className="text-[10px] text-slate-400 font-mono italic mb-3">
+                  Tip: add a site with role "Witness" in the Sites panel to share one physical witness across instances.
+                </p>
+              );
+              return (
+                <div className="mb-3 flex items-center gap-2">
+                  <label className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono">
+                    Use fleet witness site
+                  </label>
+                  <select
+                    value={instance.witnessSiteId || ""}
+                    onChange={(e) => update({ witnessSiteId: e.target.value || null })}
+                    className="text-xs font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
+                  >
+                    <option value="">— standalone (free-form above) —</option>
+                    {witnessSites.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.location || "unspecified"})</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
 
             {/* Witness Appliance Sizing */}
             {(() => {
@@ -3433,6 +2374,24 @@ function SitesPanel({ fleet, onChange }) {
                   className="flex-1 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none text-sm font-mono text-slate-500 px-1 py-0.5"
                   placeholder="Location (e.g. Dallas, TX)"
                 />
+                <input
+                  value={s.region || ""}
+                  onChange={(e) => updateSite(i, { region: e.target.value })}
+                  className="w-28 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none text-xs font-mono text-slate-500 px-1 py-0.5"
+                  placeholder="Region"
+                  title="VCF-TOPO-004: optional region grouping for multi-region fleets. Informational."
+                />
+                <select
+                  value={s.siteRole || ""}
+                  onChange={(e) => updateSite(i, { siteRole: e.target.value })}
+                  className="text-[10px] font-mono bg-white border border-slate-200 rounded px-1 py-0.5 text-slate-700"
+                  title="Optional site role. Primary = steady-state site; DR = disaster-recovery target; Witness = third fault domain for vSAN stretched clusters."
+                >
+                  <option value="">—</option>
+                  <option value="primary">Primary</option>
+                  <option value="dr">DR</option>
+                  <option value="witness">Witness</option>
+                </select>
                 <span className="text-[10px] text-slate-400 font-mono w-28 text-right">
                   {refCount} instance{refCount === 1 ? "" : "s"}
                 </span>
@@ -3505,10 +2464,14 @@ function InstancesPanel({ fleet, fleetResult, onChange }) {
           key={inst.id}
           instance={inst}
           allSites={fleet.sites}
+          allInstances={fleet.instances}
           onChange={(next) => updateInstance(i, next)}
           onRemove={() => removeInstance(i)}
           canRemove={fleet.instances.length > 1}
           result={fleetResult.instanceResults[i]}
+          isInitial={i === 0}
+          canPromote={i > 0}
+          onPromoteToInitial={() => onChange(promoteToInitial(fleet, inst.id))}
         />
       ))}
       <button
@@ -3645,6 +2608,7 @@ function TopologyView({ fleet, fleetResult, setFleet }) {
               <span>Stretched</span>
             </span>
           </div>
+          <FleetOverlayPanels fleet={fleet} />
         </>
       ) : (
         <>
@@ -3656,6 +2620,8 @@ function TopologyView({ fleet, fleetResult, setFleet }) {
             <LegendChip color="#16a34a" label="Cluster" />
             <LegendChip color="#64748b" label="Appliance" />
             <LegendChip color="#ca8a04" label="Witness" />
+            <LegendChip color="#7e22ce" label="Warm Standby" />
+            <LegendChip color="#0ea5e9" label="T0 Gateway" />
             <span className="flex items-center gap-1.5">
               <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#2563eb" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
               <span>Stretched</span>
@@ -3669,6 +2635,7 @@ function TopologyView({ fleet, fleetResult, setFleet }) {
               <span>Failover</span>
             </span>
           </div>
+          <FleetOverlayPanels fleet={fleet} />
         </>
       )}
 
@@ -3719,6 +2686,149 @@ function LegendChip({ color, label }) {
         style={{ background: color }}
       />
       <span>{label}</span>
+    </div>
+  );
+}
+
+// Overlay panels rendered under the logical topology SVG: summarize T0
+// gateways, SSO topology, DR pairs, and NSX Federation links. Complements
+// the SVG tree by surfacing cross-cluster relationships the tree can't
+// easily show.
+function FleetOverlayPanels({ fleet }) {
+  const instById = Object.fromEntries((fleet.instances || []).map((i) => [i.id, i]));
+
+  // T0 inventory per cluster (ClusterCard shows inline validator; this is a
+  // fleet-wide rollup).
+  const t0Rows = [];
+  for (const inst of fleet.instances || []) {
+    for (const dom of inst.domains || []) {
+      for (const clu of dom.clusters || []) {
+        for (const t0 of (clu.t0Gateways || [])) {
+          t0Rows.push({ inst, dom, clu, t0 });
+        }
+      }
+    }
+  }
+
+  const drPairs = (fleet.instances || [])
+    .filter((i) => i.drPosture === "warm-standby" && i.drPairedInstanceId)
+    .map((secondary) => ({ secondary, primary: instById[secondary.drPairedInstanceId] }))
+    .filter((p) => p.primary);
+
+  const federationMembers = fleet.federationEnabled
+    ? (fleet.instances || []).filter((i) => {
+        for (const dom of i.domains || []) {
+          for (const clu of dom.clusters || []) {
+            if ((clu.infraStack || []).some((e) => e.id === "nsxGlobalMgr")) return true;
+          }
+        }
+        return false;
+      })
+    : [];
+
+  const ssoMode = fleet.ssoMode || "embedded";
+  const ssoBrokers = fleet.ssoBrokers || [];
+
+  return (
+    <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* T0 Gateways */}
+      <div className="border border-slate-200 rounded p-3 bg-slate-50">
+        <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono font-semibold mb-2">
+          T0 Gateways ({t0Rows.length})
+        </div>
+        {t0Rows.length === 0 ? (
+          <p className="text-[10px] text-slate-400 font-mono italic">No T0 gateways declared.</p>
+        ) : (
+          <ul className="space-y-1">
+            {t0Rows.map(({ clu, t0 }) => (
+              <li key={`${clu.id}-${t0.id}`} className="text-[10px] font-mono text-slate-700">
+                <span className="font-semibold">{t0.name}</span>{" "}
+                <span className="text-slate-400">· {t0.haMode}</span>{" "}
+                <span className="text-slate-400">· {(t0.edgeNodeKeys || []).length} edge</span>
+                {t0.stateful && <span className="text-amber-700"> · stateful</span>}
+                {t0.bgpEnabled && <span className="text-blue-700"> · BGP</span>}
+                {(t0.featureRequirements || []).length > 0 && (
+                  <span className="text-emerald-700"> · {(t0.featureRequirements || []).join("/")}</span>
+                )}
+                <div className="text-slate-400">on {clu.name}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* SSO Topology */}
+      <div className="border border-slate-200 rounded p-3 bg-slate-50">
+        <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono font-semibold mb-2">
+          SSO Topology
+        </div>
+        <p className="text-[10px] font-mono text-slate-700 mb-1">
+          Mode: <span className="font-semibold">{ssoMode}</span>
+        </p>
+        {ssoMode === "multi-broker" && ssoBrokers.length > 0 ? (
+          <ul className="space-y-1">
+            {ssoBrokers.map((b) => (
+              <li key={b.id} className="text-[10px] font-mono text-slate-700">
+                <span className="font-semibold">{b.name || b.id}</span>
+                <span className="text-slate-400"> — serves {(b.servesInstanceIds || []).length} instance(s)</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[10px] text-slate-400 font-mono italic">
+            {ssoMode === "embedded" ? "Per-instance embedded brokers." : "Single fleet-wide broker on the initial instance."}
+          </p>
+        )}
+        {fleet.ssoFleetServicesBrokerId && (
+          <p className="text-[10px] font-mono text-slate-500 mt-1">
+            Fleet services bound to: <span className="font-semibold">{fleet.ssoFleetServicesBrokerId}</span>
+          </p>
+        )}
+      </div>
+
+      {/* DR Pairs */}
+      <div className="border border-slate-200 rounded p-3 bg-slate-50">
+        <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono font-semibold mb-2">
+          DR Pairs ({drPairs.length})
+        </div>
+        {drPairs.length === 0 ? (
+          <p className="text-[10px] text-slate-400 font-mono italic">No warm-standby pairings.</p>
+        ) : (
+          <ul className="space-y-1">
+            {drPairs.map(({ primary, secondary }) => (
+              <li key={secondary.id} className="text-[10px] font-mono text-slate-700">
+                <span className="font-semibold">{primary.name}</span>
+                <span className="text-violet-600"> → </span>
+                <span className="font-semibold">{secondary.name}</span>
+                <span className="text-slate-400"> (warm standby)</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Federation */}
+      <div className="border border-slate-200 rounded p-3 bg-slate-50">
+        <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono font-semibold mb-2">
+          NSX Federation
+        </div>
+        {!fleet.federationEnabled ? (
+          <p className="text-[10px] text-slate-400 font-mono italic">Not enabled.</p>
+        ) : federationMembers.length === 0 ? (
+          <p className="text-[10px] text-amber-700 font-mono italic">
+            Flag set but no instance carries nsxGlobalMgr — check stacks.
+          </p>
+        ) : (
+          <ul className="space-y-1">
+            {federationMembers.map((i, idx) => (
+              <li key={i.id} className="text-[10px] font-mono text-slate-700">
+                <span className="font-semibold">{i.name}</span>
+                <span className="text-slate-400"> · {idx === 0 ? "active GM" : "standby GM"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -4818,6 +3928,7 @@ export default function VcfFleetSizer() {
   const [fleet, setFleet] = useState(newFleet());
   const [view, setView] = useState("editor"); // "editor" | "topology"
   const fileInputRef = useRef(null);
+  const expandInputRef = useRef(null);
 
   const fleetResult = useMemo(() => sizeFleet(fleet), [fleet]);
 
@@ -4863,6 +3974,76 @@ export default function VcfFleetSizer() {
     e.target.value = "";
   };
 
+  // VCF-PATH-002 expand-fleet pathway: take the first instance from an
+  // imported JSON and append it to the current fleet as a new instance.
+  // Per-fleet appliances on the imported instance are stripped (they stay
+  // on the current fleet's initial instance), and sites referenced by the
+  // imported instance are carried over.
+  const importAsNewInstance = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const raw = JSON.parse(ev.target.result);
+        const migrated = migrateFleet(raw);
+        if (!migrated?.instances?.length) {
+          alert("Imported config has no instances to merge.");
+          return;
+        }
+        const source = migrated.instances[0];
+        // Import any sites the source instance refers to that aren't already
+        // on this fleet. Match by name (ids differ across exports).
+        const existingNames = new Set(fleet.sites.map((s) => s.name));
+        const newSites = (migrated.sites || []).filter((s) => !existingNames.has(s.name));
+        const allSites = [...fleet.sites, ...newSites];
+        // Rewrite the source instance's siteIds to point at this fleet's
+        // matching sites (by name).
+        const byNameId = Object.fromEntries(allSites.map((s) => [s.name, s.id]));
+        const sourceSiteIds = (source.siteIds || []).map((sid) => {
+          const src = (migrated.sites || []).find((s) => s.id === sid);
+          return src ? byNameId[src.name] : allSites[0]?.id;
+        }).filter(Boolean);
+        // Strip per-fleet appliances from the imported instance's stack —
+        // fleet-level services already exist on the current fleet's initial
+        // instance (VCF-INV-010 / VCF-PATH-002).
+        const strippedDomains = (source.domains || []).map((d) => ({
+          ...d,
+          clusters: (d.clusters || []).map((c) => ({
+            ...c,
+            infraStack: (c.infraStack || []).filter((entry) => {
+              const def = APPLIANCE_DB[entry.id];
+              return def?.scope !== "per-fleet";
+            }),
+          })),
+        }));
+        const incoming = {
+          ...source,
+          id: "inst-" + cryptoKey(),   // fresh id to avoid collisions
+          name: source.name + "-imported",
+          siteIds: sourceSiteIds,
+          domains: strippedDomains,
+        };
+        setFleet({
+          ...fleet,
+          sites: allSites,
+          instances: [...fleet.instances, incoming],
+          // Expand-fleet pathway is now implicit — leave current pathway
+          // unchanged unless the user explicitly set "greenfield" and now
+          // has multiple instances, in which case nudge to expand.
+          deploymentPathway: fleet.deploymentPathway === "greenfield"
+            ? "expand"
+            : fleet.deploymentPathway,
+        });
+        alert(`Imported "${source.name}" as a new instance. Per-fleet appliances were stripped (they stay on the fleet's initial instance).`);
+      } catch (err) {
+        alert("Failed to merge config: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
   const resetAll = () => {
     if (confirm("Reset all inputs to defaults?")) {
       setFleet(newFleet());
@@ -4894,14 +4075,29 @@ export default function VcfFleetSizer() {
             <button
               onClick={() => fileInputRef.current?.click()}
               className="text-[10px] uppercase tracking-wider font-mono text-slate-600 border border-slate-200 hover:border-blue-400 hover:text-blue-600 rounded px-3 py-1.5"
+              title="Replace the current fleet with the imported config."
             >
               Import JSON
+            </button>
+            <button
+              onClick={() => expandInputRef.current?.click()}
+              className="text-[10px] uppercase tracking-wider font-mono text-slate-600 border border-slate-200 hover:border-emerald-400 hover:text-emerald-600 rounded px-3 py-1.5"
+              title="VCF-PATH-002: append the imported config's first instance to this fleet as an expand-fleet addition. Per-fleet appliances (VCF Operations, Automation, Fleet Mgr, Logs, Networks Platform) are stripped from the imported instance."
+            >
+              Import as new instance
             </button>
             <input
               ref={fileInputRef}
               type="file"
               accept="application/json"
               onChange={importConfig}
+              className="hidden"
+            />
+            <input
+              ref={expandInputRef}
+              type="file"
+              accept="application/json"
+              onChange={importAsNewInstance}
               className="hidden"
             />
             <button
@@ -4926,6 +4122,66 @@ export default function VcfFleetSizer() {
           onChange={(e) => setFleet({ ...fleet, name: e.target.value })}
           className="bg-transparent text-xl text-slate-600 italic font-serif border-none focus:outline-none focus:bg-slate-50 rounded px-1 mb-3"
         />
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <label className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono">
+            Deployment Pathway
+          </label>
+          <select
+            value={fleet.deploymentPathway || "greenfield"}
+            onChange={(e) => setFleet({ ...fleet, deploymentPathway: e.target.value })}
+            className="text-xs font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-700 focus:outline-none focus:border-blue-400"
+            title="VCF-PATH-001..004: determines how this fleet was built and drives per-fleet appliance placement. Changes here are informational — they don't reshape existing instance stacks."
+          >
+            {Object.entries(DEPLOYMENT_PATHWAYS).map(([key, def]) => (
+              <option key={key} value={key}>{def.label} ({def.ruleId})</option>
+            ))}
+          </select>
+          <span className="text-[11px] text-slate-500 italic max-w-xl">
+            {DEPLOYMENT_PATHWAYS[fleet.deploymentPathway || "greenfield"]?.description}
+          </span>
+          <label
+            className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono cursor-pointer select-none ml-4"
+            title="VCF-INV-021: when enabled, nsxGlobalMgr is expected on the initial instance (active cluster) plus a second instance (standby cluster). Federation requires fleet.instances.length >= 2 (VCF-INV-051)."
+          >
+            <input
+              type="checkbox"
+              checked={!!fleet.federationEnabled}
+              onChange={(e) => setFleet({ ...fleet, federationEnabled: e.target.checked })}
+              className="accent-blue-600"
+            />
+            NSX Federation
+          </label>
+        </div>
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <label className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-mono">
+            SSO Model
+          </label>
+          <select
+            value={fleet.ssoMode || "embedded"}
+            onChange={(e) => setFleet({ ...fleet, ssoMode: e.target.value })}
+            className="text-xs font-mono bg-white border border-slate-200 rounded px-2 py-1 text-slate-700 focus:outline-none focus:border-blue-400"
+            title="VCF-APP-030 / VCF-SSO-001..003: selects the identity broker topology. Changes here are informational for the design — the studio does not yet auto-reshape identityBroker stack entries."
+          >
+            {Object.entries(SSO_MODES).map(([key, def]) => (
+              <option key={key} value={key}>{def.label} ({def.ruleId})</option>
+            ))}
+          </select>
+          <span className="text-[11px] text-slate-500 italic max-w-xl">
+            {SSO_MODES[fleet.ssoMode || "embedded"]?.description}
+          </span>
+          {(() => {
+            const stats = ssoInstancesPerBroker(fleet);
+            if (!stats.overLimit) return null;
+            return (
+              <span
+                className="text-[10px] uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-300 rounded px-2 py-0.5 font-mono"
+                title={`VCF-INV-031: soft recommendation is ≤ ${SSO_INSTANCES_PER_BROKER_LIMIT} instances per broker. Current fleet has ${stats.instances} instances across ${stats.brokers} broker(s) (${stats.perBroker.toFixed(1)} per broker). Consider multi-broker segmentation (VCF-SSO-003).`}
+              >
+                ⚠ over-limit
+              </span>
+            );
+          })()}
+        </div>
         <p className="text-slate-500 max-w-3xl text-sm leading-relaxed">
           Design and size multi-site VCF 9 environments. Build a hierarchy of sites,
           VCF instances, domains, and clusters — each cluster gets its own host spec
