@@ -25,24 +25,19 @@ import { useState, useMemo, useRef, memo } from "react";
 // vcf-design-studio-v5.html. Tests import engine.js directly via require().
 // ─────────────────────────────────────────────────────────────────────────────
 const {
-  APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS,
-  POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB,
+  APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, SIZING_LIMITS,
+  POLICIES, TB_TO_TIB,
   recommendVcenterSize, recommendNsxSize,
-  cryptoKey, baseHostSpec, baseStorageSettings, baseTiering,
-  newCluster, newMgmtCluster, newWorkloadCluster,
-  newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet,
-  buildDefaultPlacement, ensurePlacement,
-  getInitialInstance, isInitialInstance, getHostSplitPct, stackForInstance,
-  promoteToInitial, inferDeploymentPathway, inferFederationEnabled,
-  SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT,
-  DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries,
-  T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways,
+  cryptoKey,
+  newMgmtCluster, newWorkloadCluster,
+  newWorkloadDomain, newInstance, newSite, newFleet,
+  ensurePlacement, getHostSplitPct, stackForInstance, promoteToInitial,
+  SSO_MODES, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT,
+  DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS,
+  T0_HA_MODES, newT0Gateway, validateT0Gateways,
   EDGE_DEPLOYMENT_MODELS,
-  migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance,
-  migrateV3ToV5, migrateFleet,
-  stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster,
-  analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance,
-  projectInstanceOntoSite, sizeFleet,
+  migrateFleet,
+  stackTotals, minHostsForVerdict, sizeFleet,
 } = (typeof window !== "undefined" ? window.VcfEngine : require("./engine.js"));
 
 
