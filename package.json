@@ -1,0 +1,27 @@
+{
+  "name": "vcf-design-studio",
+  "version": "5.0.0",
+  "private": true,
+  "description": "Dev-only manifest for VCF Design Studio. The shipped vcf-design-studio-v5.html remains build-free (React, Tailwind, Babel loaded from CDNs). This package.json exists solely to run the test suite and regenerate the HTML artifact.",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "build-html":         "node scripts/build-html.mjs",
+    "verify-html":        "node scripts/verify-html-sync.mjs",
+    "generate-fixtures":  "node scripts/generate-fixtures.mjs",
+    "test":               "npm run verify-html && npm run test:unit && npm run test:migration && npm run test:snapshot && npm run test:invariants",
+    "test:unit":          "vitest run tests/unit",
+    "test:migration":     "vitest run tests/migration",
+    "test:snapshot":      "vitest run tests/snapshot",
+    "test:invariants":    "vitest run tests/invariants",
+    "test:e2e":           "playwright test",
+    "test:e2e:install":   "playwright install --with-deps chromium",
+    "test:watch":         "vitest",
+    "coverage":           "vitest run --coverage"
+  },
+  "devDependencies": {
+    "vitest":              "^2.1.9",
+    "@vitest/coverage-v8": "^2.1.9",
+    "fast-check":          "^3.23.1",
+    "@playwright/test":    "^1.49.1"
+  }
+}

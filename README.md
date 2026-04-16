@@ -21,26 +21,183 @@ client-side. No server, no `npm install`, no build toolchain.
 - Model stretched clusters spanning two sites with configurable host-split ratios
 - Compute per-cluster host counts, raw storage, and licensed cores
 - Analyze failover capacity for stretched deployments (green / yellow / red verdicts)
-- Export and import fleet designs as JSON (auto-migrates older format versions)
+- Select a deployment pathway (greenfield / expand / converge / import) and flag
+  pre-existing clusters for the converge workflow
+- Promote any VCF instance to be the fleet's initial instance; the per-fleet
+  appliances (VCF Operations, Automation, Fleet Manager, Logs, Networks Platform)
+  automatically move with the initial flag
+- Model SSO topology (embedded / fleet-wide / multi-broker), NSX Federation
+  intent, T0 gateway HA modes (Active/Standby vs Active/Active, stateful A/A),
+  Edge cluster deployment model (host-FT / rack-FT / AZ-FT edge-HA / AZ-FT
+  vSphere-HA), and fleet DR warm-standby pairings
+- Export and import fleet designs as JSON (auto-migrates older format versions);
+  "Import as new instance" supports the expand-fleet workflow
+
+## Supported Deployment Permutations
+
+The studio can design any VCF 9.0 deployment described in
+[VCF-DEPLOYMENT-PATTERNS.md](VCF-DEPLOYMENT-PATTERNS.md). Every rule ID below
+(`VCF-APP-*`, `VCF-INV-*`, `VCF-TOPO-*`, `VCF-PATH-*`, `VCF-DR-*`, `VCF-SSO-*`)
+is the stable contract between the research doc, the engine, and the test
+suite — every test name cites the rule ID it enforces.
+
+### Fleet Topologies (VCF-TOPO-001..004)
+
+| ID | Shape | Example fixture |
+|----|-------|-----------------|
+| VCF-TOPO-001 | Single instance, single site | [minimal-simple.json](test-fixtures/v5/minimal-simple.json), [minimal-ha.json](test-fixtures/v5/minimal-ha.json) |
+| VCF-TOPO-002 | Single instance, stretched across 2 sites (one shared appliance stack) | [stretched-50-50.json](test-fixtures/v5/stretched-50-50.json), [enterprise-full.json](test-fixtures/v5/enterprise-full.json) |
+| VCF-TOPO-003 | Multi-instance fleet (per-fleet services on initial instance; Collector on each) | [multi-instance-2.json](test-fixtures/v5/multi-instance-2.json), [multi-instance-federated.json](test-fixtures/v5/multi-instance-federated.json) |
+| VCF-TOPO-004 | Multi-region fleet (optional per-site region grouping, warm-standby DR) | [multi-region-dr.json](test-fixtures/v5/multi-region-dr.json), [warm-standby-pair.json](test-fixtures/v5/warm-standby-pair.json) |
+
+### Deployment Pathways (VCF-PATH-001..004)
+
+| ID | Pathway | What it models |
+|----|---------|----------------|
+| VCF-PATH-001 | Greenfield | New fleet + new instance; Installer deploys full stack |
+| VCF-PATH-002 | Expand-fleet | Add an instance; fleet-level services REUSED from initial |
+| VCF-PATH-003 | Converge | Convert non-VCF vCenter to VCF mgmt (tag clusters as `preExisting`) |
+| VCF-PATH-004 | Import | Import existing vCenter as a workload domain |
+
+### SSO Models (VCF-SSO-001..003)
+
+| ID | Mode | VMs | Scope |
+|----|------|-----|-------|
+| VCF-SSO-001 | Embedded (in mgmt vCenter) | 0 extra | per-instance |
+| VCF-SSO-002 | Fleet-Wide appliance | 3-node cluster | per-fleet (recommended ≤ 5 instances) |
+| VCF-SSO-003 | Cross-Instance multi-broker | 3 per broker | N brokers per fleet; fleet services bind to exactly ONE (VCF-INV-032) |
+
+The fleet header has an SSO Model selector; multi-broker mode exposes a
+broker list and a fleet-services broker pointer. A soft-warn pill flashes
+when instances-per-broker exceeds 5 (VCF-INV-031).
+
+### Fleet DR Posture (VCF-DR-001..050)
+
+| ID | Concept | Modeled as |
+|----|---------|------------|
+| VCF-DR-001 | Warm-standby posture | `instance.drPosture: "warm-standby"` + badge on InstanceCard |
+| VCF-DR-010 | VLR/vSphere-Replication components | Operations, Fleet Mgmt, Ops Logs, Ops Networks |
+| VCF-DR-020 | Backup/restore components | Automation, Identity Broker |
+| VCF-DR-030 | Per-instance appliances stay | SDDC Mgr, mgmt vCenter, mgmt NSX do NOT fail over |
+| VCF-DR-040 | Fleet services dormant on standby | Warm-standby copies excluded from VCF-INV-010 active count |
+
+### T0 Gateway Topology (VCF-APP-006, VCF-INV-060..065)
+
+| HA Mode | Max Edge Nodes | Stateful services | Typical use |
+|---------|:---:|---|---|
+| Active/Standby | 2 | YES (default path) | VKS (Supervisor), VCF Automation All-Apps — both REQUIRE A/S |
+| Active/Active stateless | 8 | no | N-S throughput scaling |
+| Active/Active stateful | 2, 4, 6, or 8 (even) | Day-2 NSX Manager UI (VCF-INV-064) | NAT / LB / VPN under A/A with sub-cluster pairs |
+
+Each T0 also carries:
+- Up to 2 uplinks per Edge node in A/A (VCF-INV-065, total ≤ 16)
+- Each Edge node hosts at most 1 T0 (VCF-INV-061)
+- BGP default: A/A enabled with ASN 65000, A/S disabled with no default ASN
+- Feature requirements chips (`vks`, `vcfAutomationAllApps`) that validate HA-mode compatibility
+
+### Edge Cluster Deployment Models (VCF-APP-006)
+
+| Model | Topology |
+|-------|----------|
+| Host Fault-Tolerant | Single AZ; survives host failure via vSphere HA |
+| Rack Fault-Tolerant | Multi-rack within single AZ; higher N-S throughput |
+| AZ FT — Edge HA | Dual-AZ with NSX Edge Node HA (fast failover) |
+| AZ FT — vSphere HA | Dual-AZ with vSphere HA (requires VIRTUAL form factor — bare-metal NOT supported) |
+
+Selectable per cluster via the T0 section of the ClusterCard. Informational
+at design time; does not change sizing math.
+
+## Appliance Catalog
+
+`APPLIANCE_DB` in [engine.js](engine.js) contains 24 VCF management appliances.
+Each entry carries cross-reference metadata:
+
+- `ruleId` — points into [VCF-DEPLOYMENT-PATTERNS.md](VCF-DEPLOYMENT-PATTERNS.md) (e.g. `VCF-APP-010`).
+- `scope` — one of `per-fleet`, `per-instance`, `per-domain-shared`, `per-cluster`, `per-stretched-cluster`, `cluster-internal`, `per-nsx-manager`, `per-monitored-scope`, `fleet-wide`, or `flex`.
+- `dualRole: true` — for `vcenter` and `nsxMgr` which serve both mgmt and wld scopes; stack entries carry `role: "mgmt" | "wld"` to disambiguate.
+
+Every value traces to the official Broadcom **VCF 9.0 Planning and
+Preparation Workbook** (rows B8–B266) or `techdocs.broadcom.com` (VKS
+Supervisor sizing). No blog sources.
+
+### Per-fleet appliances (live ONCE per fleet, on the initial instance)
+
+| ID | Appliance | Research rule |
+|----|-----------|---------------|
+| `vcfOps` | VCF Operations (analytics) | VCF-APP-010 |
+| `fleetMgr` | VCF Operations Fleet Manager | VCF-APP-012 |
+| `vcfOpsLogs` | VCF Operations for Logs | VCF-APP-013 |
+| `vcfOpsNet` | VCF Operations for Networks (Platform) | VCF-APP-014 |
+| `vcfAuto` | VCF Automation | VCF-APP-020 |
+
+**How the studio enforces this:** each profile's stack composition lists
+all appliances, but the `stackForInstance(profileKey, isInitial)` helper
+filters per-fleet entries out of non-initial instances' stacks. The
+"Apply Profile" button on an InstanceCard uses this filter automatically —
+a non-initial instance shows the per-fleet appliances *struck through* in
+the profile preview so the user can see they were correctly excluded.
+
+When `promoteToInitial()` moves the initial flag to another instance, both
+instances' mgmt-cluster stacks are re-derived so per-fleet appliances
+follow the flag.
+
+### Per-instance appliances (live on every instance's mgmt domain)
+
+| ID | Appliance | Research rule |
+|----|-----------|---------------|
+| `sddcMgr` | SDDC Manager | VCF-APP-001 |
+| `vcenter` (role: mgmt) | Management vCenter | VCF-APP-002 |
+| `nsxMgr` (role: mgmt) | Management NSX Manager | VCF-APP-004 |
+| `vcfOpsCollector` | VCF Operations Collector | VCF-APP-011 (required on every non-initial instance) |
+| `identityBroker` | VCF Identity Broker (WSA) | VCF-APP-030 (in embedded / fleet-wide / multi-broker modes) |
+| `aviLb` | Avi Load Balancer | VCF-APP-050 |
+| `srm` | Site Recovery Manager | VCF-APP-060 |
+| `vrms` | vSphere Replication (VRMS) | VCF-APP-061 |
+
+### Per-domain / per-cluster / per-nsx-manager
+
+| ID | Appliance | Scope | Research rule |
+|----|-----------|-------|---------------|
+| `vcenter` (role: wld) | Workload vCenter | per-domain (placed in mgmt cluster) | VCF-APP-003 |
+| `nsxMgr` (role: wld) | Workload NSX Manager | per-domain-shared (one NSX can serve multiple wld domains in same instance) | VCF-APP-005 |
+| `nsxEdge` | NSX Edge | per-nsx-manager | VCF-APP-006 |
+| `nsxGlobalMgr` | NSX Global Manager | fleet-wide (only when `fleet.federationEnabled`) | VCF-APP-040 |
+| `vksSupervisor` | VKS Supervisor | per-cluster (cluster-internal) | VCF-APP-070 |
+| `vsanWitness` | vSAN Witness Host Appliance | per-stretched-cluster | VCF-APP-080 |
 
 ## Data Model
 
 ```
 Fleet
-├── sites[]          — physical locations (name, location label)
-└── instances[]      — VCF deployments (sibling to sites, not nested)
-    ├── siteIds[]    — 1 entry = single-site, 2 = stretched across two sites
-    ├── deploymentProfile
-    ├── witness      — vSAN witness config (size, target site)
-    └── domains[]    — management (exactly 1) + workload (0+)
-        ├── placement   — "local" (pinned to one site) or "stretched"
-        ├── hostSplitPct — % of hosts at siteIds[0] when stretched
+├── deploymentPathway       — greenfield | expand | converge | import (VCF-PATH-*)
+├── federationEnabled       — boolean; controls nsxGlobalMgr placement (VCF-INV-021)
+├── ssoMode                 — embedded | fleet-wide | multi-broker (VCF-SSO-*)
+├── ssoBrokers[]            — only when ssoMode === "multi-broker"
+├── ssoFleetServicesBrokerId — VCF-INV-032: fleet services bind to ONE broker
+├── sites[]                 — physical locations
+│   ├── name, location
+│   ├── region              — optional; drives Per-Site view grouping (VCF-TOPO-004)
+│   └── siteRole            — optional: "primary" | "dr" | "witness"
+└── instances[]             — VCF deployments (sibling to sites, not nested)
+    ├── siteIds[]           — 1 = single-site, 2 = stretched
+    ├── deploymentProfile   — simple | ha | haFederation | haSiteProtection | haFederationSiteProtection
+    ├── drPosture           — "active" (default) | "warm-standby" (VCF-DR-001)
+    ├── drPairedInstanceId  — paired primary instance id when warm-standby
+    ├── witnessSiteId       — references fleet.sites[] with siteRole="witness"
+    └── domains[]           — exactly 1 mgmt + 0..N workload
+        ├── placement       — local (pinned to one site) or stretched
+        ├── hostSplitPct    — % of hosts at siteIds[0] when stretched
+        ├── componentsClusterId — cluster hosting this workload domain's appliances
         └── clusters[]
-            ├── host spec      — CPUs, cores, hyperthreading, RAM, NVMe drives
-            ├── workload       — VM count, vCPU/RAM/disk per VM
-            ├── infraStack[]   — appliances hosted on this cluster
-            ├── storage policy — RAID/Mirror, dedup, compression, reserves
-            └── tiering        — NVMe memory tiering settings
+            ├── host spec         — CPUs, cores, hyperthreading, RAM, NVMe
+            ├── workload          — VM count, vCPU/RAM/disk per VM
+            ├── infraStack[]      — appliances hosted in this cluster (per-stack-entry role for dualRole appliances)
+            ├── storage policy    — RAID/Mirror, dedup, compression, reserves
+            ├── tiering           — NVMe memory tiering settings
+            ├── t0Gateways[]      — T0 HA mode, edge bindings, stateful, BGP, feature reqs
+            ├── edgeDeploymentModel — host-FT | rack-FT | AZ-FT edge-HA | AZ-FT vSphere-HA
+            ├── preExisting       — VCF-PATH-003 converge marker
+            └── hostOverride      — manual host-count floor
 ```
 
 **Stretched clusters:** A stretched VCF instance is ONE instance with two
@@ -48,40 +205,21 @@ Fleet
 cluster, etc.). This matches how VCF actually deploys — appliances are not
 duplicated per site.
 
-## Appliance Database
-
-The `APPLIANCE_DB` constant contains 27+ VCF management appliances, each with
-multiple sizing tiers. Every value traces to the official Broadcom
-**VCF 9.0 Planning and Preparation Workbook** (rows B8–B266) or
-`techdocs.broadcom.com` (VKS Supervisor sizing).
-
-Key appliances include:
-
-| Appliance | Tiers | Notes |
-|-----------|-------|-------|
-| vCenter Server | Tiny–XLarge | Scaled by host/VM count |
-| NSX Manager | ExtraSmall–XLarge | 1 or 3 nodes depending on profile |
-| NSX Edge | Small–XLarge | Transport nodes |
-| SDDC Manager | Fixed | One per instance |
-| VCF Operations | ExtraSmall–ExtraLarge | Monitoring/analytics |
-| VCF Ops for Logs | Small–Large | Centralized logging |
-| VCF Ops for Networks | Small–XXLarge | Network analytics |
-| NSX Global Manager | Medium–XLarge | Cross-instance federation |
-| Avi Load Balancer (NSX ALB) | Small–XLarge | Application load balancing |
-| Security Services Platform | Medium–XLarge | Aggregate of 9–14 VMs |
-| VCF Automation | Small–Large | Infrastructure automation |
-| Site Recovery Manager | Light–Standard | Disaster recovery |
-| vSphere Replication (VRMS) | Light–Standard | Site replication |
-| VKS Supervisor | Tiny–Large | Kubernetes control plane (1 or 3 VMs) |
-| vSAN Witness | Tiny–Large | Stretched cluster witness host |
+**Initial-instance convention:** `fleet.instances[0]` IS the initial
+instance by convention. Per-fleet appliances (see table above) live only on
+this instance's mgmt domain initial cluster. The UI shows a "★ INITIAL"
+badge on instance[0] and a "↑ Promote to initial" button on each other
+instance that automatically re-derives both instances' mgmt stacks.
 
 ## Deployment Profiles
 
 Each VCF instance selects a deployment profile that determines which
-management appliances are deployed and how many nodes each gets:
+management appliances are deployed and how many nodes each gets. The
+initial instance gets the full stack; non-initial instances drop
+`scope === "per-fleet"` entries automatically.
 
-| Profile | Description | Typical Stack Size |
-|---------|-------------|--------------------|
+| Profile | Description | Typical Stack Size (initial) |
+|---------|-------------|:----------------------------:|
 | `simple` | Lab/PoC — single-node appliances, no redundancy | ~8 VMs |
 | `ha` | Production — clustered with full HA | ~14 VMs |
 | `haFederation` | HA + 3-node NSX Global Manager | ~17 VMs |
@@ -220,6 +358,10 @@ secondaryHosts = finalHosts - primaryHosts
 
 When an instance is stretched and has stretched clusters, a vSAN witness
 host is deployed at a third fault domain. One witness per stretched cluster.
+Witness can either live in `instance.witnessSite` (free-form) or be shared
+across instances by referencing a `fleet.sites[]` entry with
+`siteRole: "witness"` via `instance.witnessSiteId`.
+
 Witness sizing tiers:
 
 | Size | vCPU | RAM | Disk | Limits |
@@ -228,6 +370,33 @@ Witness sizing tiers:
 | Medium | 2 | 16 GB | 350 GB | ≤21 hosts, ≤22.5k components |
 | Large | 2 | 32 GB | 730 GB | ≤64 hosts, ≤45k components |
 
+## Views
+
+- **Editor** — configure sites, instances, domains, and clusters with
+  per-cluster hardware specs, workload sizing, storage policies, T0
+  gateways, and Edge deployment model
+- **Topology** — auto-generated SVG diagram showing fleet layout (solid
+  lines to primary site, dashed blue lines to secondary sites for
+  stretched instances). Overlay panels below the SVG summarize T0
+  Gateways, SSO Topology, DR Pairs, and NSX Federation links
+- **Physical** — rack/host-level view with the same overlay panels; legend
+  includes Warm-Standby and T0 Gateway color keys
+- **Per-Site** — resource projections broken down by site, optionally
+  grouped by `site.region` (VCF-TOPO-004). Shared appliances (stretched
+  instance management stacks) render in their own section rather than
+  being split per site
+
+## Import / Export
+
+- **Import JSON** — replaces the current fleet. Auto-migrates v2 / v3 / v5
+  exports; migration alert fires when the version bumps.
+- **Import as new instance** — appends the imported fleet's first instance
+  to the current fleet as an expand-fleet addition (VCF-PATH-002). Strips
+  per-fleet appliances from the imported instance so the current fleet's
+  initial instance remains the sole host of those services.
+- **Export JSON** — serializes the full fleet with `version: "vcf-sizer-v5"`
+  and a timestamp.
+
 ## Key Constants
 
 | Constant | Value | Purpose |
@@ -235,25 +404,64 @@ Witness sizing tiers:
 | `TB_TO_TIB` | 0.9095 | TB → TiB conversion factor |
 | `TIB_PER_CORE` | 1 | vSAN raw TiB entitlement per licensed CPU core |
 | `NVME_TIER_PARTITION_CAP_GB` | 4096 | Max NVMe memory tier partition (4 TB) |
-
-## Views
-
-- **Editor** — configure sites, instances, domains, and clusters with
-  per-cluster hardware specs, workload sizing, and storage policies
-- **Topology** — auto-generated SVG diagram showing fleet layout; solid lines
-  connect instances to their primary site, dashed blue lines to secondary
-  sites (stretched)
-- **Per-Site** — resource projections broken down by site; shared appliances
-  (stretched instance management stacks) render in their own section rather
-  than being split per site
+| `T0_MAX_T0S_PER_EDGE_NODE` | 1 | One T0 per Edge node (VCF-INV-061) |
+| `T0_MAX_UPLINKS_PER_EDGE_AA` | 2 | Max uplinks per Edge node in A/A T0 (VCF-INV-065) |
+| `SSO_INSTANCES_PER_BROKER_LIMIT` | 5 | Soft warn threshold (VCF-INV-031) |
 
 ## File Structure
 
 ```
-vcf-design-studio-v5.html   — standalone runnable app (open in browser)
-vcf-design-studio-v5.jsx    — source JSX (same code, module-style imports)
-test-fixtures/               — sample fleet JSON for import testing
+vcf-design-studio-v5.html         standalone runnable app (open in browser)
+vcf-design-studio-v5.jsx          source JSX (React components)
+engine.js                          pure sizing engine (shared between HTML + tests)
+
+scripts/
+├── build-html.mjs                 stitches engine.js + .jsx into the HTML
+├── verify-html-sync.mjs           CI guard: blocks drift between source + HTML
+└── generate-fixtures.mjs          deterministic fixture generator
+
+test-fixtures/
+├── v5/                             18 canonical fleet scenarios (see table above)
+├── v3/, v2/                        legacy imports used by migration tests
+└── snapshots/                      committed sizing snapshots per fixture
+
+tests/
+├── unit/                           Vitest unit tests (pure engine functions)
+├── migration/                      v2→v3→v5 migration suites
+├── snapshot/                       sizing snapshot regression guard
+├── invariants/                     fast-check property-based tests
+└── e2e/                            Playwright browser tests
+
+.github/workflows/
+├── test.yml                        push/PR — unit + coverage → playwright
+└── nightly.yml                     06:00 UTC daily against main + artifacts
 ```
+
+## Test Suite
+
+Run `npm test` for the full Vitest suite (unit + migration + snapshot +
+invariants), `npm run test:e2e` for Playwright. Current counts:
+
+- **731 automated checks** across 23 test files
+- Engine coverage: 98.5% stmts / 78.5% branches / 97.95% funcs
+- 18 v5 fixtures + 1 v3 fixture + 1 v2 fixture covering every `VCF-TOPO-*`,
+  `VCF-PATH-*`, `VCF-DR-*`, `VCF-SSO-*` and major policy permutation
+- 6 Playwright smoke tests exercising UI shell, tab switching, overlay
+  panels, and full-fixture round-trip import
+
+Rule IDs (`VCF-INV-*`, `VCF-APP-*`, etc.) appear in test `describe()` titles
+so `grep -r "VCF-INV-" tests/` produces a complete coverage matrix.
+
+## Related Documents
+
+- [VCF-DEPLOYMENT-PATTERNS.md](VCF-DEPLOYMENT-PATTERNS.md) — authoritative
+  catalog of VCF 9.0 placement rules, fleet topologies, and invariants.
+  Engine `APPLIANCE_DB` ids and scopes are the stable contract against
+  this doc.
+- [TESTING-PLAN.md](TESTING-PLAN.md) — test strategy, phase history, and
+  rule-ID coverage matrix.
+- [FEATURE-COMPLETENESS.md](FEATURE-COMPLETENESS.md) — gap analysis between
+  research-doc capabilities and studio features; all items ✅ shipped.
 
 ## Provenance
 

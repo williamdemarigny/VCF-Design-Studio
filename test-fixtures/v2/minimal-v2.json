@@ -1,0 +1,69 @@
+{
+  "version": "vcf-sizer-v2",
+  "exportedAt": "2024-01-15T08:00:00.000Z",
+  "mgmt": {
+    "name": "Management Domain",
+    "host": {
+      "cpuQty": 2,
+      "coresPerCpu": 16,
+      "ramGb": 512,
+      "nvmeQty": 4,
+      "nvmeSizeTb": 3.84,
+      "cpuOversub": 2,
+      "ramOversub": 1,
+      "reservePct": 30
+    },
+    "stack": [
+      {
+        "id": "vcenter",
+        "size": "Medium",
+        "instances": 1
+      },
+      {
+        "id": "nsxMgr",
+        "size": "Medium",
+        "instances": 3
+      }
+    ],
+    "storage": {
+      "policy": "raid5_2p1",
+      "dedup": 1,
+      "compression": 1,
+      "swapPct": 100,
+      "freePct": 25,
+      "growthPct": 15,
+      "externalStorage": false,
+      "externalArrayTib": 0
+    }
+  },
+  "wlds": [
+    {
+      "name": "Workload Domain 01",
+      "host": {
+        "cpuQty": 2,
+        "coresPerCpu": 16,
+        "ramGb": 768,
+        "nvmeQty": 6,
+        "nvmeSizeTb": 7.68,
+        "cpuOversub": 4,
+        "ramOversub": 1,
+        "reservePct": 25
+      },
+      "vmCount": 100,
+      "vcpuPerVm": 4,
+      "ramPerVm": 16,
+      "diskPerVm": 100,
+      "infraStack": [],
+      "storage": {
+        "policy": "raid6_4p2",
+        "dedup": 1.2,
+        "compression": 1,
+        "swapPct": 100,
+        "freePct": 25,
+        "growthPct": 20,
+        "externalStorage": false,
+        "externalArrayTib": 0
+      }
+    }
+  ]
+}

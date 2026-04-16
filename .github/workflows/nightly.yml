@@ -1,0 +1,49 @@
+name: nightly
+
+# Runs the full test suite nightly against main + uploads artifacts on
+# failure. Separate from the push/PR workflow so nightly flake metrics stay
+# distinguishable from per-commit results.
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  full:
+    name: Full suite (unit + migration + snapshot + invariants + e2e)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Verify HTML is in sync with sources
+        run: npm run verify-html
+
+      - name: Unit + migration + snapshot + invariants
+        run: npm run test
+
+      - name: Coverage report
+        run: npm run coverage
+
+      - name: Install Playwright browser (chromium)
+        run: npm run test:e2e:install
+
+      - name: Run Playwright E2E
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nightly
+          path: playwright-report/
+          retention-days: 14

@@ -1,0 +1,70 @@
+name: test
+
+on:
+  push:
+    branches: [main, automated-testing]
+  pull_request:
+
+jobs:
+  test:
+    name: verify + unit + migration + snapshot + invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      # Fails the build if engine.js or the JSX source was modified without
+      # re-running `npm run build-html` to regenerate the shipped HTML.
+      - name: Verify HTML is in sync with sources
+        run: npm run verify-html
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Migration tests
+        run: npm run test:migration
+
+      - name: Snapshot tests
+        run: npm run test:snapshot
+
+      - name: Invariant tests (fast-check)
+        run: npm run test:invariants
+
+      - name: Coverage (enforces thresholds from vitest.config.js)
+        run: npm run coverage
+
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Install Playwright browser (chromium)
+        run: npm run test:e2e:install
+
+      - name: Run Playwright E2E
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

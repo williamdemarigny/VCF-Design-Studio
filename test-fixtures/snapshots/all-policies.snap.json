@@ -1,0 +1,1926 @@
+{
+  "addonTib": 386.48064,
+  "entitlementTib": 1248,
+  "fleetRawTib": 1634.48064,
+  "instanceResults": [
+    {
+      "domainResults": [
+        {
+          "clusterResults": [
+            {
+              "demand": {
+                "disk": 11979,
+                "ram": 770.25,
+                "vcpu": 218
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 5,
+              "floors": {
+                "cpuHosts": 5,
+                "manualOverride": 0,
+                "policyMin": 3,
+                "ramHosts": 2,
+                "storageHosts": 2
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 160,
+              "limiter": "Compute",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 12749.25,
+                "pf": 1.5,
+                "protectedGb": 19123.875,
+                "swapGb": 770.25,
+                "totalReqGb": 27490.570312,
+                "vmCapGb": 11979,
+                "withFreeGb": 23904.84375
+              },
+              "rawTib": 209.5488,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 770.25
+              },
+              "vsanMinWarning": false
+            }
+          ],
+          "totalCores": 160,
+          "totalHosts": 5,
+          "totalRawTib": 209.5488
+        },
+        {
+          "clusterResults": [
+            {
+              "demand": {
+                "disk": 5000,
+                "ram": 800,
+                "vcpu": 200
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 5,
+              "floors": {
+                "cpuHosts": 5,
+                "manualOverride": 0,
+                "policyMin": 3,
+                "ramHosts": 2,
+                "storageHosts": 2
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 160,
+              "limiter": "Compute",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 5800,
+                "pf": 1.5,
+                "protectedGb": 8700,
+                "swapGb": 800,
+                "totalReqGb": 12506.25,
+                "vmCapGb": 5000,
+                "withFreeGb": 10875
+              },
+              "rawTib": 209.5488,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 800
+              },
+              "vsanMinWarning": false
+            },
+            {
+              "demand": {
+                "disk": 5000,
+                "ram": 800,
+                "vcpu": 200
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 6,
+              "floors": {
+                "cpuHosts": 5,
+                "manualOverride": 0,
+                "policyMin": 6,
+                "ramHosts": 2,
+                "storageHosts": 2
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 192,
+              "limiter": "Policy",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 5800,
+                "pf": 1.25,
+                "protectedGb": 7250,
+                "swapGb": 800,
+                "totalReqGb": 10421.875,
+                "vmCapGb": 5000,
+                "withFreeGb": 9062.5
+              },
+              "rawTib": 251.45856,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 800
+              },
+              "vsanMinWarning": false
+            },
+            {
+              "demand": {
+                "disk": 5000,
+                "ram": 800,
+                "vcpu": 200
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 6,
+              "floors": {
+                "cpuHosts": 5,
+                "manualOverride": 0,
+                "policyMin": 6,
+                "ramHosts": 2,
+                "storageHosts": 3
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 192,
+              "limiter": "Policy",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 5800,
+                "pf": 1.5,
+                "protectedGb": 8700,
+                "swapGb": 800,
+                "totalReqGb": 12506.25,
+                "vmCapGb": 5000,
+                "withFreeGb": 10875
+              },
+              "rawTib": 251.45856,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 800
+              },
+              "vsanMinWarning": false
+            },
+            {
+              "demand": {
+                "disk": 5000,
+                "ram": 800,
+                "vcpu": 200
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 5,
+              "floors": {
+                "cpuHosts": 5,
+                "manualOverride": 0,
+                "policyMin": 3,
+                "ramHosts": 2,
+                "storageHosts": 2
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 160,
+              "limiter": "Compute",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 5800,
+                "pf": 2,
+                "protectedGb": 11600,
+                "swapGb": 800,
+                "totalReqGb": 16675,
+                "vmCapGb": 5000,
+                "withFreeGb": 14500
+              },
+              "rawTib": 209.5488,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 800
+              },
+              "vsanMinWarning": false
+            },
+            {
+              "demand": {
+                "disk": 5000,
+                "ram": 800,
+                "vcpu": 200
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 5,
+              "floors": {
+                "cpuHosts": 5,
+                "manualOverride": 0,
+                "policyMin": 5,
+                "ramHosts": 2,
+                "storageHosts": 3
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 160,
+              "limiter": "Compute",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 5800,
+                "pf": 3,
+                "protectedGb": 17400,
+                "swapGb": 800,
+                "totalReqGb": 25012.5,
+                "vmCapGb": 5000,
+                "withFreeGb": 21750
+              },
+              "rawTib": 209.5488,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 800
+              },
+              "vsanMinWarning": false
+            },
+            {
+              "demand": {
+                "disk": 5000,
+                "ram": 800,
+                "vcpu": 200
+              },
+              "externalStorage": false,
+              "failover": null,
+              "finalHosts": 7,
+              "floors": {
+                "cpuHosts": 5,
+                "manualOverride": 0,
+                "policyMin": 7,
+                "ramHosts": 2,
+                "storageHosts": 4
+              },
+              "host": {
+                "cores": 32,
+                "rawGb": 46080,
+                "threads": 32,
+                "usableRam": 716.8,
+                "usableVcpu": 44.8
+              },
+              "licensedCores": 224,
+              "limiter": "Policy",
+              "pipeline": {
+                "drr": 1,
+                "interimGb": 5800,
+                "pf": 4,
+                "protectedGb": 23200,
+                "swapGb": 800,
+                "totalReqGb": 33350,
+                "vmCapGb": 5000,
+                "withFreeGb": 29000
+              },
+              "rawTib": 293.36832,
+              "tier": {
+                "activeRatio": 0,
+                "effectiveRamPerHost": 716.8,
+                "tierPartitionGb": 0,
+                "tieredDemandRamGb": 800
+              },
+              "vsanMinWarning": false
+            }
+          ],
+          "totalCores": 1088,
+          "totalHosts": 34,
+          "totalRawTib": 1424.93184
+        }
+      ],
+      "sharedStack": [
+        {
+          "id": "vcenter",
+          "instances": 1,
+          "key": "key-0001",
+          "role": "mgmt",
+          "size": "Medium"
+        },
+        {
+          "id": "nsxMgr",
+          "instances": 3,
+          "key": "key-0002",
+          "role": "mgmt",
+          "size": "Medium"
+        },
+        {
+          "id": "nsxEdge",
+          "instances": 2,
+          "key": "key-0003",
+          "size": "Large"
+        },
+        {
+          "id": "sddcMgr",
+          "instances": 1,
+          "key": "key-0004",
+          "size": "Default"
+        },
+        {
+          "id": "fleetMgr",
+          "instances": 1,
+          "key": "key-0005",
+          "size": "Default"
+        },
+        {
+          "id": "vcls",
+          "instances": 2,
+          "key": "key-0006",
+          "size": "Default"
+        },
+        {
+          "id": "vcfOps",
+          "instances": 3,
+          "key": "key-0007",
+          "size": "Medium"
+        },
+        {
+          "id": "vcfOpsCollector",
+          "instances": 1,
+          "key": "key-0008",
+          "size": "Medium"
+        },
+        {
+          "id": "vcfAuto",
+          "instances": 1,
+          "key": "key-0009",
+          "size": "Small"
+        },
+        {
+          "id": "vcfOpsLogs",
+          "instances": 3,
+          "key": "key-0010",
+          "size": "Medium"
+        },
+        {
+          "id": "vcfOpsNet",
+          "instances": 3,
+          "key": "key-0011",
+          "size": "Large"
+        },
+        {
+          "id": "vcfOpsNetCollector",
+          "instances": 1,
+          "key": "key-0012",
+          "size": "Large"
+        },
+        {
+          "id": "identityBroker",
+          "instances": 3,
+          "key": "key-0013",
+          "size": "Medium"
+        },
+        {
+          "id": "aviLb",
+          "instances": 3,
+          "key": "key-0014",
+          "size": "Small"
+        }
+      ],
+      "sharedTotals": {
+        "disk": 11979,
+        "ram": 770.25,
+        "vcpu": 218
+      },
+      "totalCores": 1248,
+      "totalHosts": 39,
+      "totalRawTib": 1634.48064,
+      "witness": null
+    }
+  ],
+  "siteResults": [
+    {
+      "projections": [
+        {
+          "otherSiteId": null,
+          "projectedDomains": [
+            {
+              "domain": {
+                "clusters": [
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0001",
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "instances": 1,
+                        "key": "key-0001",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "instances": 3,
+                        "key": "key-0002",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "instances": 2,
+                        "key": "key-0003",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "instances": 1,
+                        "key": "key-0004",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "fleetMgr",
+                        "instances": 1,
+                        "key": "key-0005",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcls",
+                        "instances": 2,
+                        "key": "key-0006",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcfOps",
+                        "instances": 3,
+                        "key": "key-0007",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "instances": 1,
+                        "key": "key-0008",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfAuto",
+                        "instances": 1,
+                        "key": "key-0009",
+                        "size": "Small"
+                      },
+                      {
+                        "id": "vcfOpsLogs",
+                        "instances": 3,
+                        "key": "key-0010",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsNet",
+                        "instances": 3,
+                        "key": "key-0011",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "instances": 1,
+                        "key": "key-0012",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "instances": 3,
+                        "key": "key-0013",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "aviLb",
+                        "instances": 3,
+                        "key": "key-0014",
+                        "size": "Small"
+                      }
+                    ],
+                    "isDefault": true,
+                    "name": "mgmt-cluster-01",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 0
+                    }
+                  }
+                ],
+                "componentsClusterId": null,
+                "hostSplitPct": 50,
+                "id": "dom-0001",
+                "localSiteId": "site-0001",
+                "name": "Management Domain",
+                "placement": "local",
+                "type": "mgmt",
+                "wldStack": []
+              },
+              "domainResult": {
+                "clusterResults": [
+                  {
+                    "demand": {
+                      "disk": 11979,
+                      "ram": 770.25,
+                      "vcpu": 218
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 12749.25,
+                      "pf": 1.5,
+                      "protectedGb": 19123.875,
+                      "swapGb": 770.25,
+                      "totalReqGb": 27490.570312,
+                      "vmCapGb": 11979,
+                      "withFreeGb": 23904.84375
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 770.25
+                    },
+                    "vsanMinWarning": false
+                  }
+                ],
+                "totalCores": 160,
+                "totalHosts": 5,
+                "totalRawTib": 209.5488
+              },
+              "projectedClusters": [
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0001",
+                    "infraStack": [
+                      {
+                        "id": "vcenter",
+                        "instances": 1,
+                        "key": "key-0001",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxMgr",
+                        "instances": 3,
+                        "key": "key-0002",
+                        "role": "mgmt",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "nsxEdge",
+                        "instances": 2,
+                        "key": "key-0003",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "sddcMgr",
+                        "instances": 1,
+                        "key": "key-0004",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "fleetMgr",
+                        "instances": 1,
+                        "key": "key-0005",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcls",
+                        "instances": 2,
+                        "key": "key-0006",
+                        "size": "Default"
+                      },
+                      {
+                        "id": "vcfOps",
+                        "instances": 3,
+                        "key": "key-0007",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsCollector",
+                        "instances": 1,
+                        "key": "key-0008",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfAuto",
+                        "instances": 1,
+                        "key": "key-0009",
+                        "size": "Small"
+                      },
+                      {
+                        "id": "vcfOpsLogs",
+                        "instances": 3,
+                        "key": "key-0010",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "vcfOpsNet",
+                        "instances": 3,
+                        "key": "key-0011",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "vcfOpsNetCollector",
+                        "instances": 1,
+                        "key": "key-0012",
+                        "size": "Large"
+                      },
+                      {
+                        "id": "identityBroker",
+                        "instances": 3,
+                        "key": "key-0013",
+                        "size": "Medium"
+                      },
+                      {
+                        "id": "aviLb",
+                        "instances": 3,
+                        "key": "key-0014",
+                        "size": "Small"
+                      }
+                    ],
+                    "isDefault": true,
+                    "name": "mgmt-cluster-01",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 0
+                    }
+                  },
+                  "hostsHere": 5,
+                  "rawTibHere": 209.5488,
+                  "result": {
+                    "demand": {
+                      "disk": 11979,
+                      "ram": 770.25,
+                      "vcpu": 218
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 12749.25,
+                      "pf": 1.5,
+                      "protectedGb": 19123.875,
+                      "swapGb": 770.25,
+                      "totalReqGb": 27490.570312,
+                      "vmCapGb": 11979,
+                      "withFreeGb": 23904.84375
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 770.25
+                    },
+                    "vsanMinWarning": false
+                  }
+                }
+              ],
+              "sharePct": 100
+            },
+            {
+              "domain": {
+                "clusters": [
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0002",
+                    "infraStack": [],
+                    "isDefault": true,
+                    "name": "pool-raid5_2p1",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0003",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-raid5_4p1",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_4p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0004",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-raid6_4p2",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid6_4p2",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0005",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-mirror_ftt1",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "mirror_ftt1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0006",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-mirror_ftt2",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "mirror_ftt2",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0007",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-mirror_ftt3",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "mirror_ftt3",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  }
+                ],
+                "componentsClusterId": "clu-0001",
+                "hostSplitPct": 50,
+                "id": "dom-0002",
+                "localSiteId": "site-0001",
+                "name": "Workload Domain — policy matrix",
+                "placement": "local",
+                "type": "workload",
+                "wldStack": []
+              },
+              "domainResult": {
+                "clusterResults": [
+                  {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 1.5,
+                      "protectedGb": 8700,
+                      "swapGb": 800,
+                      "totalReqGb": 12506.25,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 10875
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  },
+                  {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 6,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 6,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 192,
+                    "limiter": "Policy",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 1.25,
+                      "protectedGb": 7250,
+                      "swapGb": 800,
+                      "totalReqGb": 10421.875,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 9062.5
+                    },
+                    "rawTib": 251.45856,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  },
+                  {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 6,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 6,
+                      "ramHosts": 2,
+                      "storageHosts": 3
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 192,
+                    "limiter": "Policy",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 1.5,
+                      "protectedGb": 8700,
+                      "swapGb": 800,
+                      "totalReqGb": 12506.25,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 10875
+                    },
+                    "rawTib": 251.45856,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  },
+                  {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 2,
+                      "protectedGb": 11600,
+                      "swapGb": 800,
+                      "totalReqGb": 16675,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 14500
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  },
+                  {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 5,
+                      "ramHosts": 2,
+                      "storageHosts": 3
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 3,
+                      "protectedGb": 17400,
+                      "swapGb": 800,
+                      "totalReqGb": 25012.5,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 21750
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  },
+                  {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 7,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 7,
+                      "ramHosts": 2,
+                      "storageHosts": 4
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 224,
+                    "limiter": "Policy",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 4,
+                      "protectedGb": 23200,
+                      "swapGb": 800,
+                      "totalReqGb": 33350,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 29000
+                    },
+                    "rawTib": 293.36832,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  }
+                ],
+                "totalCores": 1088,
+                "totalHosts": 34,
+                "totalRawTib": 1424.93184
+              },
+              "projectedClusters": [
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0002",
+                    "infraStack": [],
+                    "isDefault": true,
+                    "name": "pool-raid5_2p1",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_2p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  "hostsHere": 5,
+                  "rawTibHere": 209.5488,
+                  "result": {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 1.5,
+                      "protectedGb": 8700,
+                      "swapGb": 800,
+                      "totalReqGb": 12506.25,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 10875
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  }
+                },
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0003",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-raid5_4p1",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid5_4p1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  "hostsHere": 6,
+                  "rawTibHere": 251.45856,
+                  "result": {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 6,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 6,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 192,
+                    "limiter": "Policy",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 1.25,
+                      "protectedGb": 7250,
+                      "swapGb": 800,
+                      "totalReqGb": 10421.875,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 9062.5
+                    },
+                    "rawTib": 251.45856,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  }
+                },
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0004",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-raid6_4p2",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "raid6_4p2",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  "hostsHere": 6,
+                  "rawTibHere": 251.45856,
+                  "result": {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 6,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 6,
+                      "ramHosts": 2,
+                      "storageHosts": 3
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 192,
+                    "limiter": "Policy",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 1.5,
+                      "protectedGb": 8700,
+                      "swapGb": 800,
+                      "totalReqGb": 12506.25,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 10875
+                    },
+                    "rawTib": 251.45856,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  }
+                },
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0005",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-mirror_ftt1",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "mirror_ftt1",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  "hostsHere": 5,
+                  "rawTibHere": 209.5488,
+                  "result": {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 3,
+                      "ramHosts": 2,
+                      "storageHosts": 2
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 2,
+                      "protectedGb": 11600,
+                      "swapGb": 800,
+                      "totalReqGb": 16675,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 14500
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  }
+                },
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0006",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-mirror_ftt2",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "mirror_ftt2",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  "hostsHere": 5,
+                  "rawTibHere": 209.5488,
+                  "result": {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 5,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 5,
+                      "ramHosts": 2,
+                      "storageHosts": 3
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 160,
+                    "limiter": "Compute",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 3,
+                      "protectedGb": 17400,
+                      "swapGb": 800,
+                      "totalReqGb": 25012.5,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 21750
+                    },
+                    "rawTib": 209.5488,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  }
+                },
+                {
+                  "cluster": {
+                    "edgeDeploymentModel": null,
+                    "host": {
+                      "coresPerCpu": 16,
+                      "cpuOversub": 2,
+                      "cpuQty": 2,
+                      "hyperthreadingEnabled": false,
+                      "nvmeQty": 6,
+                      "nvmeSizeTb": 7.68,
+                      "ramGb": 1024,
+                      "ramOversub": 1,
+                      "reservePct": 30
+                    },
+                    "hostOverride": 0,
+                    "id": "clu-0007",
+                    "infraStack": [],
+                    "isDefault": false,
+                    "name": "pool-mirror_ftt3",
+                    "preExisting": false,
+                    "storage": {
+                      "compression": 1,
+                      "dedup": 1,
+                      "externalArrayTib": 0,
+                      "externalStorage": false,
+                      "freePct": 25,
+                      "growthPct": 15,
+                      "policy": "mirror_ftt3",
+                      "swapPct": 100
+                    },
+                    "t0Gateways": [],
+                    "tiering": {
+                      "eligibilityPct": 70,
+                      "enabled": false,
+                      "nvmePct": 100,
+                      "tierDriveSizeTb": 7.68
+                    },
+                    "workload": {
+                      "diskPerVm": 100,
+                      "ramPerVm": 16,
+                      "vcpuPerVm": 4,
+                      "vmCount": 50
+                    }
+                  },
+                  "hostsHere": 7,
+                  "rawTibHere": 293.36832,
+                  "result": {
+                    "demand": {
+                      "disk": 5000,
+                      "ram": 800,
+                      "vcpu": 200
+                    },
+                    "externalStorage": false,
+                    "failover": null,
+                    "finalHosts": 7,
+                    "floors": {
+                      "cpuHosts": 5,
+                      "manualOverride": 0,
+                      "policyMin": 7,
+                      "ramHosts": 2,
+                      "storageHosts": 4
+                    },
+                    "host": {
+                      "cores": 32,
+                      "rawGb": 46080,
+                      "threads": 32,
+                      "usableRam": 716.8,
+                      "usableVcpu": 44.8
+                    },
+                    "licensedCores": 224,
+                    "limiter": "Policy",
+                    "pipeline": {
+                      "drr": 1,
+                      "interimGb": 5800,
+                      "pf": 4,
+                      "protectedGb": 23200,
+                      "swapGb": 800,
+                      "totalReqGb": 33350,
+                      "vmCapGb": 5000,
+                      "withFreeGb": 29000
+                    },
+                    "rawTib": 293.36832,
+                    "tier": {
+                      "activeRatio": 0,
+                      "effectiveRamPerHost": 716.8,
+                      "tierPartitionGb": 0,
+                      "tieredDemandRamGb": 800
+                    },
+                    "vsanMinWarning": false
+                  }
+                }
+              ],
+              "sharePct": 100
+            }
+          ],
+          "role": "primary",
+          "siteId": "site-0001"
+        }
+      ],
+      "site": {
+        "id": "site-0001",
+        "location": "",
+        "name": "Primary Site",
+        "region": "",
+        "siteRole": ""
+      }
+    }
+  ],
+  "totalCores": 1248,
+  "totalHosts": 39,
+  "totals": {
+    "diskGb": 11979,
+    "hosts": 39,
+    "ramGb": 770.25,
+    "vcpu": 218
+  }
+}
