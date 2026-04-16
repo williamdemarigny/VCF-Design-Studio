@@ -1824,15 +1824,17 @@ function sizeInstance(instance) {
   //
   // Either way the wldStack entries are listed ONCE in sharedStack so the
   // Shared Appliances panel still shows the full appliance inventory.
+  const domains = instance.domains || [];
+  const siteIds = instance.siteIds || [];
   const clusterById = {};
-  for (const dom of instance.domains || []) {
+  for (const dom of domains) {
     for (const c of dom.clusters || []) clusterById[c.id] = c;
   }
-  const mgmtDomain = (instance.domains || []).find((d) => d.type === "mgmt");
+  const mgmtDomain = domains.find((d) => d.type === "mgmt");
   const mgmtFirstCluster = mgmtDomain?.clusters?.[0];
 
   const extraByClusterId = {};
-  for (const d of instance.domains || []) {
+  for (const d of domains) {
     if (d.type !== "workload") continue;
     const wldStack = d.wldStack || [];
     if (wldStack.length === 0) continue;
@@ -1844,12 +1846,12 @@ function sizeInstance(instance) {
     ];
   }
 
-  const instanceIsStretched = (instance.siteIds || []).length === 2;
-  const domainResults = (instance.domains || []).map((d) =>
+  const instanceIsStretched = siteIds.length === 2;
+  const domainResults = domains.map((d) =>
     sizeDomain(d, extraByClusterId, instanceIsStretched)
   );
   const sharedStack = [];
-  for (const d of instance.domains || []) {
+  for (const d of domains) {
     for (const c of d.clusters || []) {
       for (const e of c.infraStack || []) sharedStack.push(e);
     }
@@ -1859,10 +1861,10 @@ function sizeInstance(instance) {
   }
   const sharedTotals = stackTotals(sharedStack);
   let witness = null;
-  if (instance.witnessEnabled && (instance.siteIds || []).length === 2) {
+  if (instance.witnessEnabled && instanceIsStretched) {
     const wDef = APPLIANCE_DB.vsanWitness;
     const wSz = wDef?.sizes?.[instance.witnessSize] || wDef?.sizes?.Medium;
-    const stretchedClusters = (instance.domains || []).reduce(
+    const stretchedClusters = domains.reduce(
       (acc, d) => acc + (d.placement === "stretched" ? (d.clusters || []).length : 0),
       0
     );
@@ -1954,6 +1956,7 @@ function sizeFleet(fleet) {
       .filter(Boolean),
   }));
   let totalVcpu = 0, totalRamGb = 0, totalDiskGb = 0;
+  let fleetRawTib = 0, totalCores = 0;
   for (const ir of instanceResults) {
     totalVcpu += ir.sharedTotals.vcpu;
     totalRamGb += ir.sharedTotals.ram;
@@ -1963,12 +1966,10 @@ function sizeFleet(fleet) {
       totalRamGb += ir.witness.ram || 0;
       totalDiskGb += ir.witness.disk || 0;
     }
-  }
-  let totalHosts = 0, fleetRawTib = 0, totalCores = 0;
-  for (const ir of instanceResults) {
     fleetRawTib += ir.totalRawTib || 0;
     totalCores  += ir.totalCores  || 0;
   }
+  let totalHosts = 0;
   for (const sr of siteResults) {
     for (const p of sr.projections) {
       for (const pd of p.projectedDomains) {
