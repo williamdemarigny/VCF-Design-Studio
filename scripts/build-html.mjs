@@ -36,11 +36,14 @@ export function buildHtml() {
 
   let jsx = jsxRaw;
 
-  const importRe = /^import\s*\{\s*useState,\s*useMemo,\s*useRef\s*\}\s*from\s*["']react["'];\s*$/m;
+  const importRe = /^import\s*\{\s*([^}]+?)\s*\}\s*from\s*["']react["'];\s*$/m;
   if (!importRe.test(jsx)) {
-    throw new Error("build-html: expected React import line not found in JSX source");
+    throw new Error("build-html: expected React named-imports line not found in JSX source");
   }
-  jsx = jsx.replace(importRe, "const { useState, useMemo, useRef } = React;");
+  jsx = jsx.replace(importRe, (_m, names) => {
+    const clean = names.split(",").map((s) => s.trim()).filter(Boolean).join(", ");
+    return `const { ${clean} } = React;`;
+  });
 
   const engineRe = /\(typeof window !== "undefined" \? window\.VcfEngine : require\("\.\/engine\.js"\)\)/;
   if (!engineRe.test(jsx)) {

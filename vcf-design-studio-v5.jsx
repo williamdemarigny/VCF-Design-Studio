@@ -17,7 +17,7 @@
 // not include VKS sizing tables).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, memo } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Engine symbols live in engine.js and are loaded before this module.
@@ -88,7 +88,10 @@ function PerSiteView({ fleet, fleetResult }) {
       });
       return { instance: ir.instance, items, witness: ir.witness, totals: ir.sharedTotals };
     });
-  }, [fleetResult]);
+    // Dep narrowed from [fleetResult] to [fleetResult.instanceResults] — the
+    // Shared Appliances table only depends on per-instance shared stacks, so
+    // edits to siteResults/totalHosts don't need to re-derive rows.
+  }, [fleetResult.instanceResults]);
 
   return (
     <div className="space-y-5">
@@ -488,16 +491,20 @@ function Section({ title, children, right }) {
   );
 }
 
-function Row({ k, v }) {
+// Row / FloorRow / Stat accept only primitive props (strings, numbers, bools),
+// so memo's default shallow comparison is sufficient to skip re-renders when
+// an unrelated sibling cluster changes. Parents still re-render but these
+// leaves no-op if their own props are unchanged.
+const Row = memo(function Row({ k, v }) {
   return (
     <div className="flex justify-between border-b border-dotted border-slate-200 py-0.5">
       <span className="text-slate-400">{k}</span>
       <span className="text-slate-700">{v}</span>
     </div>
   );
-}
+});
 
-function FloorRow({ label, value, active }) {
+const FloorRow = memo(function FloorRow({ label, value, active }) {
   return (
     <div
       className={`flex justify-between px-2 py-1 rounded border ${
@@ -510,9 +517,9 @@ function FloorRow({ label, value, active }) {
       <span className="tabular-nums">{value}</span>
     </div>
   );
-}
+});
 
-function Stat({ label, value, mono }) {
+const Stat = memo(function Stat({ label, value, mono }) {
   return (
     <div className="border border-slate-200 bg-white rounded p-3">
       <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1 font-mono">
@@ -523,7 +530,7 @@ function Stat({ label, value, mono }) {
       </div>
     </div>
   );
-}
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STACK PICKER — table of appliance entries with size/instance controls
@@ -2678,7 +2685,7 @@ function TopologyView({ fleet, fleetResult, setFleet }) {
   );
 }
 
-function LegendChip({ color, label }) {
+const LegendChip = memo(function LegendChip({ color, label }) {
   return (
     <div className="flex items-center gap-1.5">
       <span
@@ -2688,7 +2695,7 @@ function LegendChip({ color, label }) {
       <span>{label}</span>
     </div>
   );
-}
+});
 
 // Overlay panels rendered under the logical topology SVG: summarize T0
 // gateways, SSO topology, DR pairs, and NSX Federation links. Complements
