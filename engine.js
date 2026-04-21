@@ -638,9 +638,427 @@ function newT0Gateway(name = "t0-prod") {
     uplinksPerEdge: [],
     stateful: false,                // Only meaningful when haMode === "active-active"
     bgpEnabled: false,              // Users toggle; default differs by haMode
-    asn: null,
+    asnLocal: null,
+    bgpPeers: [],
     featureRequirements: [],        // e.g. ["vks", "vcfAutomationAllApps"]
   };
+}
+
+function createFleetNetworkConfig() {
+  return {
+    dns: { servers: [], searchDomains: [], primaryDomain: "" },
+    ntp: { servers: [], timezone: "UTC" },
+    syslog: { servers: [] },
+    rootCaBundle: null,
+  };
+}
+
+function createClusterNetworks() {
+  return {
+    nicProfileId: "4-nic",
+    vds: NIC_PROFILES["4-nic"].vds.map(function(v) { return { name: v.name, uplinks: v.uplinks.slice(), mtu: v.mtu }; }),
+    mgmt:    { vlan: null, subnet: null, gateway: null, pool: { start: null, end: null } },
+    vmotion: { vlan: null, subnet: null, gateway: null, pool: { start: null, end: null }, mtu: MTU_VMOTION },
+    vsan:    { vlan: null, subnet: null, gateway: null, pool: { start: null, end: null }, mtu: MTU_VSAN },
+    hostTep: { vlan: null, subnet: null, gateway: null, pool: { start: null, end: null }, mtu: MTU_TEP_RECOMMENDED, useDhcp: false },
+    edgeTep: { vlan: null, subnet: null, gateway: null, pool: { start: null, end: null }, mtu: MTU_TEP_RECOMMENDED },
+    uplinks: [],
+  };
+}
+
+function createHostIpOverride(hostIndex) {
+  return {
+    hostIndex: hostIndex,
+    mgmtIp: null,
+    vmotionIp: null,
+    vsanIp: null,
+    hostTepIps: null,
+    bmcIp: null,
+  };
+}
+
+function ipToInt(ip) {
+  var parts = ip.split(".");
+  return ((parseInt(parts[0], 10) << 24) | (parseInt(parts[1], 10) << 16) | (parseInt(parts[2], 10) << 8) | parseInt(parts[3], 10)) >>> 0;
+}
+
+function intToIp(num) {
+  return [(num >>> 24) & 255, (num >>> 16) & 255, (num >>> 8) & 255, num & 255].join(".");
+}
+
+function ipPoolSize(start, end) {
+  if (!start || !end) return 0;
+  return ipToInt(end) - ipToInt(start) + 1;
+}
+
+function subnetContainsIp(subnet, ip) {
+  if (!subnet || !ip) return false;
+  var parts = subnet.split("/");
+  var netIp = ipToInt(parts[0]);
+  var bits = parseInt(parts[1], 10);
+  var mask = bits === 0 ? 0 : (0xFFFFFFFF << (32 - bits)) >>> 0;
+  return (ipToInt(ip) & mask) === (netIp & mask);
+}
+
+function allocateClusterIps(cluster, finalHosts) {
+  var nets = cluster.networks;
+  if (!nets) return { hosts: [], edgeNodes: [], warnings: [] };
+
+  var warnings = [];
+  var overrideMap = {};
+  (cluster.hostOverrides || []).forEach(function(o) { overrideMap[o.hostIndex] = o; });
+
+  var overrideIps = {};
+  (cluster.hostOverrides || []).forEach(function(o) {
+    if (o.mgmtIp) overrideIps[o.mgmtIp] = true;
+    if (o.vmotionIp) overrideIps[o.vmotionIp] = true;
+    if (o.vsanIp) overrideIps[o.vsanIp] = true;
+    if (o.bmcIp) overrideIps[o.bmcIp] = true;
+    if (o.hostTepIps) o.hostTepIps.forEach(function(ip) { overrideIps[ip] = true; });
+  });
+
+  function nextFromPool(pool, count, networkName) {
+    if (!pool || !pool.start || !pool.end) {
+      if (count > 0) warnings.push({ severity: "error", ruleId: "VCF-IP-002", message: networkName + " pool not defined but " + count + " IPs needed" });
+      return [];
+    }
+    var start = ipToInt(pool.start);
+    var end = ipToInt(pool.end);
+    var allocated = [];
+    var cursor = start;
+    while (allocated.length < count && cursor <= end) {
+      var candidate = intToIp(cursor);
+      if (!overrideIps[candidate]) {
+        allocated.push(candidate);
+      }
+      cursor++;
+    }
+    if (allocated.length < count) {
+      warnings.push({ severity: "error", ruleId: "VCF-IP-002", message: networkName + " pool exhausted: needed " + count + ", got " + allocated.length });
+    }
+    return allocated;
+  }
+
+  var mgmtPool = nextFromPool(nets.mgmt && nets.mgmt.pool, finalHosts, "mgmt");
+  var vmotionPool = nextFromPool(nets.vmotion && nets.vmotion.pool, finalHosts, "vmotion");
+  var vsanPool = nextFromPool(nets.vsan && nets.vsan.pool, finalHosts, "vsan");
+
+  var tepCount = finalHosts * 2;
+  var tepPool = [];
+  if (nets.hostTep && nets.hostTep.useDhcp) {
+    warnings.push({ severity: "info", ruleId: "VCF-IP-019", message: "Host TEP uses DHCP — skipping static allocation" });
+  } else {
+    tepPool = nextFromPool(nets.hostTep && nets.hostTep.pool, tepCount, "hostTep");
+  }
+
+  var poolHostIdx = 0;
+  var hosts = [];
+  for (var i = 0; i < finalHosts; i++) {
+    var ov = overrideMap[i];
+    var tepPair = nets.hostTep && nets.hostTep.useDhcp ? null : [tepPool[i * 2] || null, tepPool[i * 2 + 1] || null];
+    hosts.push({
+      index: i,
+      mgmtIp: (ov && ov.mgmtIp) || mgmtPool[poolHostIdx] || null,
+      vmotionIp: (ov && ov.vmotionIp) || vmotionPool[poolHostIdx] || null,
+      vsanIp: (ov && ov.vsanIp) || vsanPool[poolHostIdx] || null,
+      hostTepIps: (ov && ov.hostTepIps) || tepPair,
+      bmcIp: (ov && ov.bmcIp) || null,
+      source: ov ? "override" : "pool",
+    });
+    if (!ov) poolHostIdx++;
+  }
+
+  var edgeNodes = [];
+  var edgeTepPool = nextFromPool(nets.edgeTep && nets.edgeTep.pool, (cluster.t0Gateways || []).reduce(function(n, t0) { return n + (t0.edgeNodeKeys || []).length; }, 0) * 2, "edgeTep");
+  var edgeTepIdx = 0;
+  (cluster.t0Gateways || []).forEach(function(t0) {
+    (t0.edgeNodeKeys || []).forEach(function(key, ei) {
+      edgeNodes.push({
+        t0Id: t0.id,
+        edgeNodeKey: key,
+        edgeTepIps: [edgeTepPool[edgeTepIdx] || null, edgeTepPool[edgeTepIdx + 1] || null],
+      });
+      edgeTepIdx += 2;
+    });
+  });
+
+  return { hosts: hosts, edgeNodes: edgeNodes, warnings: warnings };
+}
+
+function validateNetworkDesign(fleet) {
+  var issues = [];
+
+  // ─── Fleet-level checks ───────────────────────────────────────────────────
+  var nc = fleet.networkConfig;
+  if (!nc || !nc.dns || !nc.dns.servers || nc.dns.servers.length === 0) {
+    issues.push({ ruleId: "VCF-NET-010", severity: "error", message: "Fleet DNS servers not configured" });
+  }
+  if (!nc || !nc.ntp || !nc.ntp.servers || nc.ntp.servers.length === 0) {
+    issues.push({ ruleId: "VCF-NET-011", severity: "error", message: "Fleet NTP servers not configured" });
+  }
+
+  // ─── Collect all cluster mgmt subnets for cross-cluster check ───────
+  var allMgmtSubnets = [];
+
+  (fleet.instances || []).forEach(function(inst) {
+    (inst.domains || []).forEach(function(dom) {
+      (dom.clusters || []).forEach(function(cl) {
+        var nets = cl.networks;
+        if (!nets) return;
+        var clusterPath = inst.name + " / " + dom.name + " / " + cl.name;
+
+        // VCF-IP-001 — distinct VLANs within cluster
+        var vlans = {};
+        var vlanFields = [
+          { key: "mgmt", net: nets.mgmt },
+          { key: "vmotion", net: nets.vmotion },
+          { key: "vsan", net: nets.vsan },
+          { key: "hostTep", net: nets.hostTep },
+          { key: "edgeTep", net: nets.edgeTep },
+        ];
+        vlanFields.forEach(function(f) {
+          if (f.net && f.net.vlan != null) {
+            if (vlans[f.net.vlan]) {
+              issues.push({ ruleId: "VCF-IP-001", severity: "error", message: clusterPath + ": " + f.key + " VLAN " + f.net.vlan + " duplicates " + vlans[f.net.vlan] });
+            } else {
+              vlans[f.net.vlan] = f.key;
+            }
+          }
+        });
+
+        // VCF-IP-003 — pool range within subnet
+        // VCF-IP-004 — pool start ≤ pool end
+        var poolNetworks = [
+          { key: "mgmt", net: nets.mgmt },
+          { key: "vmotion", net: nets.vmotion },
+          { key: "vsan", net: nets.vsan },
+          { key: "hostTep", net: nets.hostTep },
+          { key: "edgeTep", net: nets.edgeTep },
+        ];
+        poolNetworks.forEach(function(f) {
+          if (f.net && f.net.pool && f.net.pool.start && f.net.pool.end) {
+            if (ipToInt(f.net.pool.start) > ipToInt(f.net.pool.end)) {
+              issues.push({ ruleId: "VCF-IP-004", severity: "error", message: clusterPath + ": " + f.key + " pool start > end" });
+            }
+            if (f.net.subnet) {
+              if (!subnetContainsIp(f.net.subnet, f.net.pool.start)) {
+                issues.push({ ruleId: "VCF-IP-003", severity: "error", message: clusterPath + ": " + f.key + " pool start outside subnet " + f.net.subnet });
+              }
+              if (!subnetContainsIp(f.net.subnet, f.net.pool.end)) {
+                issues.push({ ruleId: "VCF-IP-003", severity: "error", message: clusterPath + ": " + f.key + " pool end outside subnet " + f.net.subnet });
+              }
+            }
+          }
+        });
+
+        // VCF-IP-005 — subnets within same cluster must not overlap
+        var subnets = [];
+        poolNetworks.forEach(function(f) {
+          if (f.net && f.net.subnet) subnets.push({ key: f.key, subnet: f.net.subnet });
+        });
+        for (var si = 0; si < subnets.length; si++) {
+          for (var sj = si + 1; sj < subnets.length; sj++) {
+            var a = subnets[si], b = subnets[sj];
+            if (a.subnet === b.subnet) {
+              issues.push({ ruleId: "VCF-IP-005", severity: "error", message: clusterPath + ": " + a.key + " and " + b.key + " share subnet " + a.subnet });
+            }
+          }
+        }
+
+        // VCF-IP-007 — host overrides must be in subnet
+        (cl.hostOverrides || []).forEach(function(ov) {
+          if (ov.mgmtIp && nets.mgmt && nets.mgmt.subnet && !subnetContainsIp(nets.mgmt.subnet, ov.mgmtIp)) {
+            issues.push({ ruleId: "VCF-IP-007", severity: "error", message: clusterPath + ": host " + ov.hostIndex + " mgmt override " + ov.mgmtIp + " outside subnet " + nets.mgmt.subnet });
+          }
+          if (ov.vmotionIp && nets.vmotion && nets.vmotion.subnet && !subnetContainsIp(nets.vmotion.subnet, ov.vmotionIp)) {
+            issues.push({ ruleId: "VCF-IP-007", severity: "error", message: clusterPath + ": host " + ov.hostIndex + " vmotion override " + ov.vmotionIp + " outside subnet " + nets.vmotion.subnet });
+          }
+          if (ov.vsanIp && nets.vsan && nets.vsan.subnet && !subnetContainsIp(nets.vsan.subnet, ov.vsanIp)) {
+            issues.push({ ruleId: "VCF-IP-007", severity: "error", message: clusterPath + ": host " + ov.hostIndex + " vsan override " + ov.vsanIp + " outside subnet " + nets.vsan.subnet });
+          }
+        });
+
+        // VCF-HW-NET-020 — MTU checks
+        if (nets.hostTep && nets.hostTep.mtu != null && nets.hostTep.mtu < MTU_TEP_MIN) {
+          issues.push({ ruleId: "VCF-HW-NET-020", severity: "error", message: clusterPath + ": host TEP MTU " + nets.hostTep.mtu + " below minimum " + MTU_TEP_MIN });
+        }
+        if (nets.vmotion && nets.vmotion.mtu != null && nets.vmotion.mtu < MTU_VMOTION) {
+          issues.push({ ruleId: "VCF-HW-NET-020", severity: "warn", message: clusterPath + ": vMotion MTU " + nets.vmotion.mtu + " below recommended " + MTU_VMOTION });
+        }
+        if (nets.vsan && nets.vsan.mtu != null && nets.vsan.mtu < MTU_VSAN) {
+          issues.push({ ruleId: "VCF-HW-NET-020", severity: "warn", message: clusterPath + ": vSAN MTU " + nets.vsan.mtu + " below recommended " + MTU_VSAN });
+        }
+
+        // VCF-HW-NET-022 — T0 edge uplink VLAN must match cluster uplinks
+        var uplinkVlans = {};
+        (nets.uplinks || []).forEach(function(u) { if (u.vlan != null) uplinkVlans[u.vlan] = true; });
+        (cl.t0Gateways || []).forEach(function(t0) {
+          (t0.bgpPeers || []).forEach(function(peer) {
+            if (peer.ip && nets.uplinks && nets.uplinks.length > 0) {
+              var inAny = nets.uplinks.some(function(u) { return u.subnet && subnetContainsIp(u.subnet, peer.ip); });
+              if (!inAny) {
+                issues.push({ ruleId: "VCF-NET-030", severity: "error", message: clusterPath + ": BGP peer " + peer.ip + " not in any uplink subnet" });
+              }
+            }
+            if (peer.asn != null && t0.asnLocal != null && peer.asn === t0.asnLocal) {
+              issues.push({ ruleId: "VCF-NET-031", severity: "warn", message: clusterPath + ": BGP peer ASN " + peer.asn + " equals local ASN (iBGP?) on T0 " + t0.name });
+            }
+          });
+        });
+
+        // Collect mgmt subnets for cross-cluster check
+        if (nets.mgmt && nets.mgmt.subnet) {
+          allMgmtSubnets.push({ subnet: nets.mgmt.subnet, path: clusterPath });
+        }
+      });
+    });
+  });
+
+  // VCF-IP-006 — cross-cluster mgmt subnet reuse (warn)
+  for (var mi = 0; mi < allMgmtSubnets.length; mi++) {
+    for (var mj = mi + 1; mj < allMgmtSubnets.length; mj++) {
+      if (allMgmtSubnets[mi].subnet === allMgmtSubnets[mj].subnet) {
+        issues.push({ ruleId: "VCF-IP-006", severity: "warn", message: "Mgmt subnet " + allMgmtSubnets[mi].subnet + " reused: " + allMgmtSubnets[mi].path + " and " + allMgmtSubnets[mj].path });
+      }
+    }
+  }
+
+  return issues;
+}
+
+function emitInstallerJson(fleet, fleetResult) {
+  var nc = fleet.networkConfig || {};
+  var dns = nc.dns || {};
+  var ntp = nc.ntp || {};
+
+  var networkSpecs = [];
+  var hostSpecs = [];
+  var edgeSpecs = [];
+
+  (fleet.instances || []).forEach(function(inst, instIdx) {
+    (inst.domains || []).forEach(function(dom, domIdx) {
+      (dom.clusters || []).forEach(function(cl, clIdx) {
+        var nets = cl.networks;
+        if (!nets) return;
+
+        var instResult = fleetResult.instanceResults[instIdx];
+        var domResult = instResult && instResult.domainResults[domIdx];
+        var clResult = domResult && domResult.clusterResults[clIdx];
+        var finalHosts = clResult ? clResult.finalHosts : 0;
+
+        if (nets.mgmt && nets.mgmt.vlan != null) {
+          networkSpecs.push({ type: "mgmt", vlanId: nets.mgmt.vlan, subnet: nets.mgmt.subnet, defaultGateway: nets.mgmt.gateway, mtu: nets.mgmt.mtu || 1500, cluster: cl.name });
+        }
+        if (nets.vmotion && nets.vmotion.vlan != null) {
+          networkSpecs.push({ type: "vmotion", vlanId: nets.vmotion.vlan, subnet: nets.vmotion.subnet, mtu: nets.vmotion.mtu || 9000, cluster: cl.name });
+        }
+        if (nets.vsan && nets.vsan.vlan != null) {
+          networkSpecs.push({ type: "vsan", vlanId: nets.vsan.vlan, subnet: nets.vsan.subnet, mtu: nets.vsan.mtu || 9000, cluster: cl.name });
+        }
+        if (nets.hostTep && nets.hostTep.vlan != null) {
+          networkSpecs.push({
+            type: "hostTep", vlanId: nets.hostTep.vlan, subnet: nets.hostTep.subnet,
+            gateway: nets.hostTep.gateway, mtu: nets.hostTep.mtu || 1700,
+            ipPool: nets.hostTep.pool, useDhcp: !!nets.hostTep.useDhcp, cluster: cl.name,
+          });
+        }
+        if (nets.edgeTep && nets.edgeTep.vlan != null) {
+          networkSpecs.push({ type: "edgeTep", vlanId: nets.edgeTep.vlan, subnet: nets.edgeTep.subnet, mtu: nets.edgeTep.mtu || 1700, ipPool: nets.edgeTep.pool, cluster: cl.name });
+        }
+
+        var ipPlan = allocateClusterIps(cl, finalHosts);
+        ipPlan.hosts.forEach(function(h) {
+          hostSpecs.push({
+            cluster: cl.name,
+            hostIndex: h.index,
+            ipAddress: { mgmtIp: h.mgmtIp, vmotionIp: h.vmotionIp, vsanIp: h.vsanIp, hostTepIps: h.hostTepIps },
+            bmcConfig: { ipAddress: h.bmcIp },
+          });
+        });
+
+        ipPlan.edgeNodes.forEach(function(en) {
+          edgeSpecs.push({ cluster: cl.name, edgeNodeKey: en.edgeNodeKey, t0Id: en.t0Id, tepIpConfig: en.edgeTepIps });
+        });
+      });
+    });
+  });
+
+  return {
+    dnsSpec: { primaryDomain: dns.primaryDomain || "", dnsServers: dns.servers || [], searchDomains: dns.searchDomains || [] },
+    ntpServers: ntp.servers || [],
+    syslogSpec: { servers: (nc.syslog && nc.syslog.servers) || [] },
+    networkSpecs: networkSpecs,
+    hostSpecs: hostSpecs,
+    edgeSpecs: edgeSpecs,
+  };
+}
+
+function emitWorkbookRows(fleet, fleetResult) {
+  var nc = fleet.networkConfig || {};
+  var dns = nc.dns || {};
+  var ntp = nc.ntp || {};
+
+  var fleetSheet = {
+    sheet: "Fleet Services",
+    rows: [
+      ["DNS Servers", (dns.servers || []).join(", ")],
+      ["DNS Primary Domain", dns.primaryDomain || ""],
+      ["DNS Search Domains", (dns.searchDomains || []).join(", ")],
+      ["NTP Servers", (ntp.servers || []).join(", ")],
+      ["NTP Timezone", ntp.timezone || "UTC"],
+      ["Syslog Servers", ((nc.syslog && nc.syslog.servers) || []).join(", ")],
+    ],
+  };
+
+  var networkRows = [["Cluster", "Network", "VLAN", "Subnet", "Gateway", "MTU", "Pool Start", "Pool End"]];
+  var hostRows = [["Cluster", "Host #", "Mgmt IP", "vMotion IP", "vSAN IP", "TEP IPs", "BMC IP", "Source"]];
+  var bgpRows = [["Cluster", "T0 Name", "Local ASN", "Peer Name", "Peer IP", "Peer ASN", "Hold Time", "Keepalive"]];
+
+  (fleet.instances || []).forEach(function(inst, instIdx) {
+    (inst.domains || []).forEach(function(dom, domIdx) {
+      (dom.clusters || []).forEach(function(cl, clIdx) {
+        var nets = cl.networks;
+        if (!nets) return;
+
+        var instResult = fleetResult.instanceResults[instIdx];
+        var domResult = instResult && instResult.domainResults[domIdx];
+        var clResult = domResult && domResult.clusterResults[clIdx];
+        var finalHosts = clResult ? clResult.finalHosts : 0;
+
+        var netFields = [
+          { key: "mgmt", label: "Management" },
+          { key: "vmotion", label: "vMotion" },
+          { key: "vsan", label: "vSAN" },
+          { key: "hostTep", label: "Host TEP" },
+          { key: "edgeTep", label: "Edge TEP" },
+        ];
+        netFields.forEach(function(f) {
+          var n = nets[f.key];
+          if (n && n.vlan != null) {
+            networkRows.push([cl.name, f.label, String(n.vlan), n.subnet || "", n.gateway || "", String(n.mtu || ""), (n.pool && n.pool.start) || "", (n.pool && n.pool.end) || ""]);
+          }
+        });
+
+        var ipPlan = allocateClusterIps(cl, finalHosts);
+        ipPlan.hosts.forEach(function(h) {
+          hostRows.push([cl.name, String(h.index), h.mgmtIp || "", h.vmotionIp || "", h.vsanIp || "", h.hostTepIps ? h.hostTepIps.join("; ") : "DHCP", h.bmcIp || "", h.source]);
+        });
+
+        (cl.t0Gateways || []).forEach(function(t0) {
+          (t0.bgpPeers || []).forEach(function(peer) {
+            bgpRows.push([cl.name, t0.name, String(t0.asnLocal || ""), peer.name || "", peer.ip || "", String(peer.asn || ""), String(peer.holdTime || 180), String(peer.keepAlive || 60)]);
+          });
+        });
+      });
+    });
+  });
+
+  return [
+    fleetSheet,
+    { sheet: "Network Configuration", rows: networkRows },
+    { sheet: "IP Address Plan", rows: hostRows },
+    { sheet: "BGP Configuration", rows: bgpRows },
+  ];
 }
 
 // Given a cluster, return all issues against VCF-INV-060..065. Each entry has
@@ -914,6 +1332,60 @@ const TB_TO_TIB = 0.9095;
 const TIB_PER_CORE = 1;
 const NVME_TIER_PARTITION_CAP_GB = 4096;
 
+// ─── NETWORK CONSTANTS ─────────────────────────────────────────────────────
+const VLAN_ID_MIN = 1;
+const VLAN_ID_MAX = 4094;
+const MTU_MGMT = 1500;
+const MTU_VMOTION = 9000;
+const MTU_VSAN = 9000;
+const MTU_TEP_MIN = 1600;
+const MTU_TEP_RECOMMENDED = 1700;
+const DEFAULT_BGP_ASN_AA = 65000;
+const TEP_POOL_GROWTH_FACTOR = 1.25;
+
+const NIC_PROFILES = {
+  "2-nic": {
+    nicCount: 2,
+    uplinks: ["vmnic0", "vmnic1"],
+    vds: [{ name: "vds-converged", uplinks: ["vmnic0", "vmnic1"], mtu: 9000 }],
+    portgroups: { mgmt: "vds-converged", vmotion: "vds-converged", vsan: "vds-converged", hostTep: "vds-converged" },
+    teaming: "loadBalanceSrcId",
+  },
+  "4-nic": {
+    nicCount: 4,
+    uplinks: ["vmnic0", "vmnic1", "vmnic2", "vmnic3"],
+    vds: [
+      { name: "vds-mgmt-vmotion", uplinks: ["vmnic0", "vmnic1"], mtu: 9000 },
+      { name: "vds-sdn", uplinks: ["vmnic2", "vmnic3"], mtu: 9000 },
+    ],
+    portgroups: { mgmt: "vds-mgmt-vmotion", vmotion: "vds-mgmt-vmotion", vsan: "vds-sdn", hostTep: "vds-sdn" },
+    teaming: "loadBalanceSrcId",
+  },
+  "6-nic": {
+    nicCount: 6,
+    uplinks: ["vmnic0", "vmnic1", "vmnic2", "vmnic3", "vmnic4", "vmnic5"],
+    vds: [
+      { name: "vds-mgmt", uplinks: ["vmnic0", "vmnic1"], mtu: 1500 },
+      { name: "vds-vmotion-vsan", uplinks: ["vmnic2", "vmnic3"], mtu: 9000 },
+      { name: "vds-overlay", uplinks: ["vmnic4", "vmnic5"], mtu: 9000 },
+    ],
+    portgroups: { mgmt: "vds-mgmt", vmotion: "vds-vmotion-vsan", vsan: "vds-vmotion-vsan", hostTep: "vds-overlay" },
+    teaming: "loadBalanceSrcId",
+  },
+  "8-nic": {
+    nicCount: 8,
+    uplinks: ["vmnic0", "vmnic1", "vmnic2", "vmnic3", "vmnic4", "vmnic5", "vmnic6", "vmnic7"],
+    vds: [
+      { name: "vds-mgmt", uplinks: ["vmnic0", "vmnic1"], mtu: 1500 },
+      { name: "vds-vmotion", uplinks: ["vmnic2", "vmnic3"], mtu: 9000 },
+      { name: "vds-vsan", uplinks: ["vmnic4", "vmnic5"], mtu: 9000 },
+      { name: "vds-overlay", uplinks: ["vmnic6", "vmnic7"], mtu: 9000 },
+    ],
+    portgroups: { mgmt: "vds-mgmt", vmotion: "vds-vmotion", vsan: "vds-vsan", hostTep: "vds-overlay" },
+    teaming: "loadBalanceSrcId",
+  },
+};
+
 // Lightweight number formatter used inside engine reason strings.
 // Mirrors the UI fmt() helper but intentionally lives here so engine.js stays
 // self-contained for Node tests.
@@ -1000,6 +1472,8 @@ function newCluster(name = "cluster-01", isDefault = true) {
     // change, but the chosen model drives DC layout expectations and
     // survivability. Null when not declared.
     edgeDeploymentModel: null,
+    networks: createClusterNetworks(),
+    hostOverrides: [],
   };
 }
 
@@ -1132,6 +1606,7 @@ function newFleet() {
     // regardless of how many exist (VCF-INV-032). When null, defaults to
     // the single broker in embedded / fleet-wide modes.
     ssoFleetServicesBrokerId: null,
+    networkConfig: createFleetNetworkConfig(),
     sites: [primary],
     instances: [inst],
   };
@@ -1371,8 +1846,43 @@ function migrateV3ToV5(v3Fleet) {
   return { id: v3Fleet.id, name: v3Fleet.name, sites, instances };
 }
 
+function migrateV5ToV6(fleet) {
+  if (!fleet.networkConfig) {
+    fleet = { ...fleet, networkConfig: createFleetNetworkConfig() };
+  }
+  return {
+    ...fleet,
+    version: "vcf-sizer-v6",
+    instances: (fleet.instances || []).map(function(inst) {
+      return {
+        ...inst,
+        domains: (inst.domains || []).map(function(dom) {
+          return {
+            ...dom,
+            clusters: (dom.clusters || []).map(function(cl) {
+              var updated = {
+                ...cl,
+                networks: cl.networks || createClusterNetworks(),
+                hostOverrides: cl.hostOverrides || [],
+              };
+              updated.t0Gateways = (updated.t0Gateways || []).map(function(t0) {
+                return {
+                  ...t0,
+                  asnLocal: t0.asnLocal != null ? t0.asnLocal : (t0.asn != null ? t0.asn : null),
+                  bgpPeers: t0.bgpPeers || [],
+                };
+              });
+              return updated;
+            }),
+          };
+        }),
+      };
+    }),
+  };
+}
+
 function migrateFleet(raw) {
-  if (!raw) return newFleet();
+  if (!raw) return migrateV5ToV6(newFleet());
   const version = raw.version || "vcf-sizer-v3";
   let fleet = raw.fleet || raw;
   // Run older versions through their upgrade paths first, then fall through
@@ -1381,11 +1891,15 @@ function migrateFleet(raw) {
   if (version === "vcf-sizer-v2") {
     const v3 = migrateV2ToV3(fleet);
     fleet = migrateV3ToV5(v3.fleet || v3);
-  } else if (version !== "vcf-sizer-v5") {
+  } else if (version !== "vcf-sizer-v5" && version !== "vcf-sizer-v6") {
     fleet = migrateV3ToV5(fleet);
   }
+  fleet = migrateV5ToV6(fleet);
   {
     return {
+      ...fleet,
+      version: fleet.version || "vcf-sizer-v6",
+      networkConfig: fleet.networkConfig,
       id: fleet.id || "fleet-" + cryptoKey(),
       name: fleet.name || "Fleet",
       // Backfill VCF-PATH-* deploymentPathway on legacy imports based on
@@ -1988,6 +2502,6 @@ function sizeFleet(fleet) {
 // ─────────────────────────────────────────────────────────────────────────────
 // UMD-style export — attach to window (browser) and module.exports (Node).
 // ─────────────────────────────────────────────────────────────────────────────
-const VcfEngine = { APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS, POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB, recommendVcenterSize, recommendNsxSize, cryptoKey, baseHostSpec, baseStorageSettings, baseTiering, newCluster, newMgmtCluster, newWorkloadCluster, newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet, buildDefaultPlacement, ensurePlacement, getInitialInstance, isInitialInstance, getHostSplitPct, stackForInstance, promoteToInitial, inferDeploymentPathway, inferFederationEnabled, SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT, DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries, T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways, EDGE_DEPLOYMENT_MODELS, migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance, migrateV3ToV5, migrateFleet, stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster, analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance, projectInstanceOntoSite, sizeFleet };
+const VcfEngine = { APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS, POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB, VLAN_ID_MIN, VLAN_ID_MAX, MTU_MGMT, MTU_VMOTION, MTU_VSAN, MTU_TEP_MIN, MTU_TEP_RECOMMENDED, DEFAULT_BGP_ASN_AA, TEP_POOL_GROWTH_FACTOR, NIC_PROFILES, createFleetNetworkConfig, createClusterNetworks, createHostIpOverride, ipToInt, intToIp, ipPoolSize, subnetContainsIp, allocateClusterIps, validateNetworkDesign, emitInstallerJson, emitWorkbookRows, recommendVcenterSize, recommendNsxSize, cryptoKey, baseHostSpec, baseStorageSettings, baseTiering, newCluster, newMgmtCluster, newWorkloadCluster, newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet, buildDefaultPlacement, ensurePlacement, getInitialInstance, isInitialInstance, getHostSplitPct, stackForInstance, promoteToInitial, inferDeploymentPathway, inferFederationEnabled, SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT, DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries, T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways, EDGE_DEPLOYMENT_MODELS, migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance, migrateV3ToV5, migrateV5ToV6, migrateFleet, stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster, analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance, projectInstanceOntoSite, sizeFleet };
 if (typeof window !== "undefined") { window.VcfEngine = VcfEngine; }
 if (typeof module !== "undefined" && module.exports) { module.exports = VcfEngine; }

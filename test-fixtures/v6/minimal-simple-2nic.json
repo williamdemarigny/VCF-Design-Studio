@@ -1,0 +1,109 @@
+{
+  "version": "vcf-sizer-v6",
+  "exportedAt": "2026-04-20T12:00:00.000Z",
+  "fleet": {
+    "id": "fleet-0001",
+    "name": "Minimal Simple 2-NIC",
+    "deploymentPathway": "greenfield",
+    "federationEnabled": false,
+    "ssoMode": "embedded",
+    "ssoBrokers": [],
+    "ssoFleetServicesBrokerId": null,
+    "networkConfig": {
+      "dns": {
+        "servers": ["10.1.1.53", "10.1.1.54"],
+        "searchDomains": ["vcf.lab", "corp.vcf.lab"],
+        "primaryDomain": "vcf.lab"
+      },
+      "ntp": {
+        "servers": ["10.1.1.100", "pool.ntp.org"],
+        "timezone": "America/New_York"
+      },
+      "syslog": {
+        "servers": ["10.1.1.200"]
+      },
+      "rootCaBundle": null
+    },
+    "sites": [
+      {
+        "id": "site-0001",
+        "name": "Lab Site",
+        "location": "",
+        "region": "",
+        "siteRole": ""
+      }
+    ],
+    "instances": [
+      {
+        "id": "inst-0001",
+        "name": "lab-instance",
+        "deploymentProfile": "simple",
+        "siteIds": ["site-0001"],
+        "witnessEnabled": false,
+        "witnessSize": "Medium",
+        "witnessSite": { "name": "Witness Site", "location": "" },
+        "witnessSiteId": null,
+        "drPosture": "active",
+        "drPairedInstanceId": null,
+        "domains": [
+          {
+            "id": "dom-0001",
+            "type": "mgmt",
+            "name": "Management Domain",
+            "placement": "local",
+            "hostSplitPct": 50,
+            "localSiteId": "site-0001",
+            "clusters": [
+              {
+                "id": "clu-0001",
+                "name": "mgmt-cluster-01",
+                "isDefault": true,
+                "host": {
+                  "cpuQty": 2,
+                  "coresPerCpu": 16,
+                  "hyperthreadingEnabled": false,
+                  "ramGb": 1024,
+                  "nvmeQty": 6,
+                  "nvmeSizeTb": 7.68,
+                  "cpuOversub": 2,
+                  "ramOversub": 1,
+                  "reservePct": 30
+                },
+                "workload": { "vmCount": 0, "vcpuPerVm": 4, "ramPerVm": 16, "diskPerVm": 100 },
+                "infraStack": [
+                  { "id": "vcenter", "size": "Small", "instances": 1, "key": "key-0001" },
+                  { "id": "nsxMgr", "size": "Medium", "instances": 1, "key": "key-0002" },
+                  { "id": "sddcMgr", "size": "Default", "instances": 1, "key": "key-0003" },
+                  { "id": "edge-1", "size": "Large", "instances": 2, "key": "key-0004" }
+                ],
+                "storage": {
+                  "policy": "raid5_2p1", "dedup": 1, "compression": 1,
+                  "swapPct": 100, "freePct": 25, "growthPct": 15,
+                  "externalStorage": false, "externalArrayTib": 0
+                },
+                "tiering": { "enabled": false, "nvmePct": 100, "eligibilityPct": 70, "tierDriveSizeTb": 7.68 },
+                "hostOverride": 0,
+                "t0Gateways": [],
+                "preExisting": false,
+                "edgeDeploymentModel": null,
+                "networks": {
+                  "nicProfileId": "2-nic",
+                  "vds": [
+                    { "name": "vds-converged", "uplinks": ["vmnic0", "vmnic1"], "mtu": 9000 }
+                  ],
+                  "mgmt": { "vlan": 1611, "subnet": "10.0.0.0/24", "gateway": "10.0.0.1", "pool": { "start": "10.0.0.10", "end": "10.0.0.50" } },
+                  "vmotion": { "vlan": 1611, "subnet": "10.0.1.0/24", "gateway": "10.0.1.1", "pool": { "start": "10.0.1.10", "end": "10.0.1.50" }, "mtu": 9000 },
+                  "vsan": { "vlan": 1611, "subnet": "10.0.2.0/24", "gateway": "10.0.2.1", "pool": { "start": "10.0.2.10", "end": "10.0.2.50" }, "mtu": 9000 },
+                  "hostTep": { "vlan": 1611, "subnet": "10.0.3.0/24", "gateway": "10.0.3.1", "pool": { "start": "10.0.3.10", "end": "10.0.3.50" }, "mtu": 1700, "useDhcp": false },
+                  "edgeTep": { "vlan": 1611, "subnet": "10.0.4.0/24", "gateway": "10.0.4.1", "pool": { "start": "10.0.4.10", "end": "10.0.4.30" }, "mtu": 1700 },
+                  "uplinks": []
+                },
+                "hostOverrides": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

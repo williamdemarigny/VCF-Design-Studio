@@ -789,6 +789,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0001",
                     "infraStack": [
                       {
@@ -880,6 +881,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -982,6 +1055,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0001",
                     "infraStack": [
                       {
@@ -1073,6 +1147,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -1172,6 +1318,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0002",
                     "infraStack": [
                       {
@@ -1233,6 +1380,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -1335,6 +1554,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0002",
                     "infraStack": [
                       {
@@ -1396,6 +1616,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -1495,6 +1787,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0003",
                     "infraStack": [
                       {
@@ -1556,6 +1849,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -1658,6 +2023,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0003",
                     "infraStack": [
                       {
@@ -1719,6 +2085,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -1818,6 +2256,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0004",
                     "infraStack": [
                       {
@@ -1879,6 +2318,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -1981,6 +2492,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0004",
                     "infraStack": [
                       {
@@ -2042,6 +2554,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -2141,6 +2725,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0005",
                     "infraStack": [
                       {
@@ -2202,6 +2787,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -2304,6 +2961,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0005",
                     "infraStack": [
                       {
@@ -2365,6 +3023,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -2464,6 +3194,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0006",
                     "infraStack": [
                       {
@@ -2525,6 +3256,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,
@@ -2627,6 +3430,7 @@
                       "reservePct": 30
                     },
                     "hostOverride": 0,
+                    "hostOverrides": [],
                     "id": "clu-0006",
                     "infraStack": [
                       {
@@ -2688,6 +3492,78 @@
                     ],
                     "isDefault": true,
                     "name": "mgmt-cluster-01",
+                    "networks": {
+                      "edgeTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "hostTep": {
+                        "gateway": null,
+                        "mtu": 1700,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "useDhcp": false,
+                        "vlan": null
+                      },
+                      "mgmt": {
+                        "gateway": null,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "nicProfileId": "4-nic",
+                      "uplinks": [],
+                      "vds": [
+                        {
+                          "mtu": 9000,
+                          "name": "vds-mgmt-vmotion",
+                          "uplinks": [
+                            "vmnic0",
+                            "vmnic1"
+                          ]
+                        },
+                        {
+                          "mtu": 9000,
+                          "name": "vds-sdn",
+                          "uplinks": [
+                            "vmnic2",
+                            "vmnic3"
+                          ]
+                        }
+                      ],
+                      "vmotion": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      },
+                      "vsan": {
+                        "gateway": null,
+                        "mtu": 9000,
+                        "pool": {
+                          "end": null,
+                          "start": null
+                        },
+                        "subnet": null,
+                        "vlan": null
+                      }
+                    },
                     "preExisting": false,
                     "storage": {
                       "compression": 1,

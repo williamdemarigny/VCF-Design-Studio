@@ -1,0 +1,186 @@
+{
+  "version": "vcf-sizer-v6",
+  "exportedAt": "2026-04-20T12:00:00.000Z",
+  "fleet": {
+    "id": "fleet-0004",
+    "name": "Federation BGP",
+    "deploymentPathway": "expand",
+    "federationEnabled": true,
+    "ssoMode": "multi-broker",
+    "ssoBrokers": [
+      { "id": "broker-0001", "name": "Broker East", "servesInstanceIds": [] },
+      { "id": "broker-0002", "name": "Broker West", "servesInstanceIds": [] }
+    ],
+    "ssoFleetServicesBrokerId": "broker-0001",
+    "networkConfig": {
+      "dns": { "servers": ["10.1.1.53"], "searchDomains": ["vcf.lab"], "primaryDomain": "vcf.lab" },
+      "ntp": { "servers": ["10.1.1.100"], "timezone": "UTC" },
+      "syslog": { "servers": ["10.1.1.200"] },
+      "rootCaBundle": null
+    },
+    "sites": [
+      { "id": "site-0001", "name": "Region Alpha", "location": "", "region": "", "siteRole": "" },
+      { "id": "site-0002", "name": "Region Beta", "location": "", "region": "", "siteRole": "" }
+    ],
+    "instances": [
+      {
+        "id": "inst-0001",
+        "name": "vcf-alpha",
+        "deploymentProfile": "haFederation",
+        "siteIds": ["site-0001"],
+        "witnessEnabled": false,
+        "witnessSize": "Medium",
+        "witnessSite": { "name": "Witness Site", "location": "" },
+        "witnessSiteId": null,
+        "drPosture": "active",
+        "drPairedInstanceId": null,
+        "domains": [
+          {
+            "id": "dom-0001",
+            "type": "mgmt",
+            "name": "Management Domain",
+            "placement": "local",
+            "hostSplitPct": 50,
+            "localSiteId": "site-0001",
+            "clusters": [
+              {
+                "id": "clu-0001",
+                "name": "mgmt-cluster-01",
+                "isDefault": true,
+                "host": {
+                  "cpuQty": 2, "coresPerCpu": 32, "hyperthreadingEnabled": true,
+                  "ramGb": 2048, "nvmeQty": 10, "nvmeSizeTb": 7.68,
+                  "cpuOversub": 2, "ramOversub": 1, "reservePct": 30
+                },
+                "workload": { "vmCount": 0, "vcpuPerVm": 4, "ramPerVm": 16, "diskPerVm": 100 },
+                "infraStack": [
+                  { "id": "vcenter", "size": "Default", "instances": 1, "key": "key-0001" },
+                  { "id": "nsxMgr", "size": "Large", "instances": 3, "key": "key-0002" },
+                  { "id": "sddcMgr", "size": "Default", "instances": 1, "key": "key-0003" },
+                  { "id": "nsxGlobalMgr", "size": "Large", "instances": 3, "key": "key-0005" },
+                  { "id": "edge-1", "size": "Large", "instances": 2, "key": "key-0004" }
+                ],
+                "storage": {
+                  "policy": "raid6_4p2", "dedup": 1.3, "compression": 1.2,
+                  "swapPct": 100, "freePct": 20, "growthPct": 20,
+                  "externalStorage": false, "externalArrayTib": 0
+                },
+                "tiering": { "enabled": false, "nvmePct": 100, "eligibilityPct": 70, "tierDriveSizeTb": 7.68 },
+                "hostOverride": 0,
+                "t0Gateways": [
+                  {
+                    "id": "t0-0001", "name": "t0-prod", "haMode": "active-active",
+                    "edgeNodeKeys": ["edge-1"], "uplinksPerEdge": [1, 1],
+                    "stateful": true, "bgpEnabled": true,
+                    "asnLocal": 65000,
+                    "bgpPeers": [
+                      { "name": "tor-a", "asn": 65100, "ip": "203.0.113.1", "password": null, "holdTime": 180, "keepAlive": 60 },
+                      { "name": "tor-b", "asn": 65101, "ip": "203.0.113.2", "password": null, "holdTime": 180, "keepAlive": 60 }
+                    ],
+                    "featureRequirements": ["vks"]
+                  }
+                ],
+                "preExisting": false,
+                "edgeDeploymentModel": null,
+                "networks": {
+                  "nicProfileId": "8-nic",
+                  "vds": [
+                    { "name": "vds-mgmt", "uplinks": ["vmnic0", "vmnic1"], "mtu": 1500 },
+                    { "name": "vds-vmotion", "uplinks": ["vmnic2", "vmnic3"], "mtu": 9000 },
+                    { "name": "vds-vsan", "uplinks": ["vmnic4", "vmnic5"], "mtu": 9000 },
+                    { "name": "vds-overlay", "uplinks": ["vmnic6", "vmnic7"], "mtu": 9000 }
+                  ],
+                  "mgmt": { "vlan": 1611, "subnet": "10.0.0.0/24", "gateway": "10.0.0.1", "pool": { "start": "10.0.0.10", "end": "10.0.0.50" } },
+                  "vmotion": { "vlan": 1612, "subnet": "10.0.1.0/24", "gateway": "10.0.1.1", "pool": { "start": "10.0.1.10", "end": "10.0.1.50" }, "mtu": 9000 },
+                  "vsan": { "vlan": 1613, "subnet": "10.0.2.0/24", "gateway": "10.0.2.1", "pool": { "start": "10.0.2.10", "end": "10.0.2.50" }, "mtu": 9000 },
+                  "hostTep": { "vlan": 1614, "subnet": "10.0.3.0/24", "gateway": "10.0.3.1", "pool": { "start": "10.0.3.10", "end": "10.0.3.50" }, "mtu": 1700, "useDhcp": false },
+                  "edgeTep": { "vlan": 1615, "subnet": "10.0.4.0/24", "gateway": "10.0.4.1", "pool": { "start": "10.0.4.10", "end": "10.0.4.30" }, "mtu": 1700 },
+                  "uplinks": [{ "vlan": 1616, "subnet": "203.0.113.0/30", "gateway": "203.0.113.1", "edgeNodeIp": "203.0.113.2" }]
+                },
+                "hostOverrides": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "inst-0002",
+        "name": "vcf-beta",
+        "deploymentProfile": "haFederation",
+        "siteIds": ["site-0002"],
+        "witnessEnabled": false,
+        "witnessSize": "Medium",
+        "witnessSite": { "name": "Witness Site", "location": "" },
+        "witnessSiteId": null,
+        "drPosture": "active",
+        "drPairedInstanceId": null,
+        "domains": [
+          {
+            "id": "dom-0002",
+            "type": "mgmt",
+            "name": "Management Domain Beta",
+            "placement": "local",
+            "hostSplitPct": 50,
+            "localSiteId": "site-0002",
+            "clusters": [
+              {
+                "id": "clu-0002",
+                "name": "mgmt-cluster-02",
+                "isDefault": true,
+                "host": {
+                  "cpuQty": 2, "coresPerCpu": 32, "hyperthreadingEnabled": true,
+                  "ramGb": 2048, "nvmeQty": 10, "nvmeSizeTb": 7.68,
+                  "cpuOversub": 2, "ramOversub": 1, "reservePct": 30
+                },
+                "workload": { "vmCount": 0, "vcpuPerVm": 4, "ramPerVm": 16, "diskPerVm": 100 },
+                "infraStack": [
+                  { "id": "vcenter", "size": "Default", "instances": 1, "key": "key-0006" },
+                  { "id": "nsxMgr", "size": "Large", "instances": 3, "key": "key-0007" },
+                  { "id": "sddcMgr", "size": "Default", "instances": 1, "key": "key-0008" },
+                  { "id": "edge-2", "size": "Large", "instances": 2, "key": "key-0009" }
+                ],
+                "storage": {
+                  "policy": "raid6_4p2", "dedup": 1.3, "compression": 1.2,
+                  "swapPct": 100, "freePct": 20, "growthPct": 20,
+                  "externalStorage": false, "externalArrayTib": 0
+                },
+                "tiering": { "enabled": false, "nvmePct": 100, "eligibilityPct": 70, "tierDriveSizeTb": 7.68 },
+                "hostOverride": 0,
+                "t0Gateways": [
+                  {
+                    "id": "t0-0002", "name": "t0-prod-beta", "haMode": "active-active",
+                    "edgeNodeKeys": ["edge-2"], "uplinksPerEdge": [1, 1],
+                    "stateful": true, "bgpEnabled": true,
+                    "asnLocal": 65000,
+                    "bgpPeers": [
+                      { "name": "tor-a", "asn": 65100, "ip": "203.0.114.1", "password": null, "holdTime": 180, "keepAlive": 60 }
+                    ],
+                    "featureRequirements": ["vks"]
+                  }
+                ],
+                "preExisting": false,
+                "edgeDeploymentModel": null,
+                "networks": {
+                  "nicProfileId": "8-nic",
+                  "vds": [
+                    { "name": "vds-mgmt", "uplinks": ["vmnic0", "vmnic1"], "mtu": 1500 },
+                    { "name": "vds-vmotion", "uplinks": ["vmnic2", "vmnic3"], "mtu": 9000 },
+                    { "name": "vds-vsan", "uplinks": ["vmnic4", "vmnic5"], "mtu": 9000 },
+                    { "name": "vds-overlay", "uplinks": ["vmnic6", "vmnic7"], "mtu": 9000 }
+                  ],
+                  "mgmt": { "vlan": 1711, "subnet": "10.1.0.0/24", "gateway": "10.1.0.1", "pool": { "start": "10.1.0.10", "end": "10.1.0.50" } },
+                  "vmotion": { "vlan": 1712, "subnet": "10.1.1.0/24", "gateway": "10.1.1.1", "pool": { "start": "10.1.1.10", "end": "10.1.1.50" }, "mtu": 9000 },
+                  "vsan": { "vlan": 1713, "subnet": "10.1.2.0/24", "gateway": "10.1.2.1", "pool": { "start": "10.1.2.10", "end": "10.1.2.50" }, "mtu": 9000 },
+                  "hostTep": { "vlan": 1714, "subnet": "10.1.3.0/24", "gateway": "10.1.3.1", "pool": { "start": "10.1.3.10", "end": "10.1.3.50" }, "mtu": 1700, "useDhcp": false },
+                  "edgeTep": { "vlan": 1715, "subnet": "10.1.4.0/24", "gateway": "10.1.4.1", "pool": { "start": "10.1.4.10", "end": "10.1.4.30" }, "mtu": 1700 },
+                  "uplinks": [{ "vlan": 1716, "subnet": "203.0.114.0/30", "gateway": "203.0.114.1", "edgeNodeIp": "203.0.114.2" }]
+                },
+                "hostOverrides": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

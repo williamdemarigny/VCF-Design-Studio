@@ -10,3 +10,8 @@ coverage/
 .vitest-cache/
 playwright-report/
 test-results/
+*.xlsx
+
+AGENTS.md
+VCF-DEPLOYMENT-PATTERNS.md
+VCF-NETWORKING-PATTERNS.md

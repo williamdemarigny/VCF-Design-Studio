@@ -5,7 +5,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 
 const FIXTURE_DIR = path.resolve(__dirname, "../../test-fixtures/v5");
-const HTML_PATH = path.resolve(__dirname, "../../vcf-design-studio-v5.html");
+const HTML_PATH = path.resolve(__dirname, "../../vcf-design-studio-v6.html");
 const HTML_URL = "file:///" + HTML_PATH.replace(/\\/g, "/");
 
 // Small helper — import a fixture by triggering the hidden file input.
@@ -69,5 +69,24 @@ test.describe("VCF Design Studio — fixture import round-trip", () => {
       // If the React tree crashed, the main header would be replaced.
       await expect(page.getByText("VCF", { exact: false }).first()).toBeVisible();
     }
+  });
+});
+
+test.describe("VCF Design Studio — network tab", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(HTML_URL);
+    await expect(page.getByText("VCF", { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("network tab renders NIC diagram and VLAN map", async ({ page }) => {
+    await page.getByRole("button", { name: /^Network$/ }).click();
+
+    await expect(page.getByText("Physical NIC Topology")).toBeVisible();
+    await expect(page.getByText("VLAN & Subnet Map")).toBeVisible();
+    await expect(page.getByText("NSX Edge / T0 Topology")).toBeVisible();
+    await expect(page.getByText("Per-Host IP Assignments")).toBeVisible();
+
+    const svgs = page.locator("svg");
+    await expect(svgs.first()).toBeVisible();
   });
 });

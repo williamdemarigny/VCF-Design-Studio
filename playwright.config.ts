@@ -1,5 +1,5 @@
 // Playwright config — smoke + journey E2E suite for VCF Design Studio.
-// The shipped vcf-design-studio-v5.html is served over a local file:// URL;
+// The shipped vcf-design-studio-v6.html is served over a local file:// URL;
 // no dev server is needed. CI installs chromium via `npm run test:e2e:install`.
 import { defineConfig, devices } from "@playwright/test";
 

@@ -3,14 +3,92 @@
 A browser-based design and sizing tool for VMware Cloud Foundation 9 fleets.
 Model multi-site deployments, configure host hardware, choose vSAN protection
 policies, and let the sizing engine compute host counts, storage requirements,
-and vSAN licensing — all in a single HTML file with no build step.
+and vSAN licensing. Version 6 adds full network design: physical NIC
+profiles, VLAN/subnet/IP pool configuration, per-host IP allocation,
+network validation, and export to VCF Installer JSON and Planning
+Workbook CSV — all in a single HTML file with no build step.
 
-## How to Run
+## Getting Started
 
-Open `vcf-design-studio-v5.html` in any modern browser. That's it.
+### Quick start
 
-The app loads React 18, Tailwind CSS, and Babel from CDNs and runs entirely
-client-side. No server, no `npm install`, no build toolchain.
+1. Download or clone this repository
+2. Open `vcf-design-studio-v6.html` in any modern browser (Chrome, Edge, Firefox, Safari)
+3. Start designing — no installation, no server, no build step required
+
+The entire application runs in a single HTML file. It loads React 18,
+Tailwind CSS, and Babel from CDNs and runs entirely client-side.
+
+### Typical workflow
+
+1. **Configure your fleet** — set sites, VCF instances, deployment profile,
+   and cluster hardware in the **Editor** tab
+2. **Add networking** — select a NIC profile (2/4/6/8-NIC), fill in VLANs,
+   subnets, and IP pools per cluster. Enter fleet DNS and NTP servers in the
+   Fleet Summary panel
+3. **Review the design** — switch to the **Network** tab to see physical NIC
+   diagrams, VLAN/subnet map, T0 topology, and per-host IP assignments
+4. **Check topology** — use the **Topology Diagram** tab for logical and
+   physical fleet layout, and **Per-Site View** for resource allocation
+5. **Export** — click **Export JSON** to save the full design,
+   **Export Installer JSON** for VCF cloudBuilder input, or
+   **Export Workbook CSV** for the Planning Workbook
+
+### Importing an existing design
+
+Click **Import JSON** to load a previously exported `.json` file. The studio
+auto-migrates designs from older versions (v2, v3, v5) — you'll see a
+notification when migration occurs. The original file is never modified.
+
+To add an instance to an existing fleet, use **Import as new instance**
+(VCF-PATH-002). This strips per-fleet appliances from the imported instance
+so the current fleet's initial instance remains the sole host of those
+services.
+
+### Offline use
+
+The app requires an internet connection on first load (to fetch React,
+Tailwind, and Babel from CDNs). After that, most browsers will cache
+these resources. For fully offline use, open the file once while connected,
+then it will work offline from cache.
+
+### For developers
+
+```bash
+npm install          # install dev dependencies (Vitest, Playwright)
+npm test             # run full test suite
+npm run build-html   # regenerate HTML from engine.js + JSX
+npm run verify-html  # CI guard: check HTML matches source
+npm run test:e2e     # Playwright browser tests
+npm run coverage     # coverage report
+```
+
+## What's New in v6
+
+v6 is a major release that adds **full network design** alongside the existing
+compute and storage sizing. Existing v5 JSON exports auto-migrate on import.
+
+- **Network tab** — dedicated fourth tab with Physical NIC diagrams,
+  VLAN/Subnet map, NSX Edge/T0 topology visualization, and per-host IP grid
+- **NIC profiles** — 4 canned physical layouts (2-NIC / 4-NIC / 6-NIC / 8-NIC)
+  with per-cluster vDS, portgroup, and teaming configuration
+- **VLAN & subnet design** — per-cluster fields for Management, vMotion, vSAN,
+  Host TEP, and Edge TEP networks with VLAN ID, subnet CIDR, gateway, and
+  IP pool ranges
+- **IP allocator** — deterministic pool-driven allocation of per-host IPs
+  (vmk0 mgmt, vmk1 vMotion, vmk2 vSAN, vmk10/11 TEP) with per-host override
+  support and DHCP option for host TEP
+- **Fleet network config** — DNS servers, NTP servers, primary domain, and
+  syslog targets configured at fleet level
+- **13 network validation rules** — VLAN uniqueness, pool sizing, subnet
+  containment, MTU minimums, BGP peer reachability, and more
+- **Export: VCF Installer JSON** — produces `bringup-spec.json`-shaped output
+  with `dnsSpec`, `ntpServers`, `networkSpecs`, `hostSpecs`, and `edgeSpecs`
+- **Export: Workbook CSV** — produces Planning Workbook rows for Fleet Services,
+  Network Configuration, IP Address Plan, and BGP Configuration sheets
+- **v5 → v6 migration** — `migrateV5ToV6` auto-backfills `networkConfig`,
+  `cluster.networks`, `cluster.hostOverrides`, and `t0Gateway.bgpPeers`
+- **922 automated tests** across 28 files (was 691 in v5), 98.7% statement coverage
 
 ## What It Does
 
@@ -388,14 +466,18 @@ Witness sizing tiers:
 
 ## Import / Export
 
-- **Import JSON** — replaces the current fleet. Auto-migrates v2 / v3 / v5
+- **Import JSON** — replaces the current fleet. Auto-migrates v2 / v3 / v5 / v6
   exports; migration alert fires when the version bumps.
 - **Import as new instance** — appends the imported fleet's first instance
   to the current fleet as an expand-fleet addition (VCF-PATH-002). Strips
   per-fleet appliances from the imported instance so the current fleet's
   initial instance remains the sole host of those services.
-- **Export JSON** — serializes the full fleet with `version: "vcf-sizer-v5"`
-  and a timestamp.
+- **Export JSON** — serializes the full fleet with `version: "vcf-sizer-v6"`
+  and a timestamp. Includes network configuration per cluster.
+- **Export Installer JSON** — produces VCF Installer `bringup-spec.json`-shaped
+  output with DNS, NTP, network specs, per-host IPs, and edge specs.
+- **Export Workbook CSV** — produces Planning Workbook rows for fleet services,
+  network config, IP plan, and BGP configuration.
 
 ## Key Constants
 
@@ -407,12 +489,18 @@ Witness sizing tiers:
 | `T0_MAX_T0S_PER_EDGE_NODE` | 1 | One T0 per Edge node (VCF-INV-061) |
 | `T0_MAX_UPLINKS_PER_EDGE_AA` | 2 | Max uplinks per Edge node in A/A T0 (VCF-INV-065) |
 | `SSO_INSTANCES_PER_BROKER_LIMIT` | 5 | Soft warn threshold (VCF-INV-031) |
+| `VLAN_ID_MIN` / `MAX` | 1 / 4094 | Valid VLAN range |
+| `MTU_MGMT` | 1500 | Management network MTU |
+| `MTU_VMOTION` / `MTU_VSAN` | 9000 | Jumbo frame MTU for vMotion / vSAN |
+| `MTU_TEP_MIN` / `RECOMMENDED` | 1600 / 1700 | Geneve overlay TEP MTU bounds |
+| `DEFAULT_BGP_ASN_AA` | 65000 | Default BGP ASN for A/A T0 (VCF-APP-006) |
+| `NIC_PROFILES` | 4 profiles | 2-NIC / 4-NIC / 6-NIC / 8-NIC layouts |
 
 ## File Structure
 
 ```
-vcf-design-studio-v5.html         standalone runnable app (open in browser)
-vcf-design-studio-v5.jsx          source JSX (React components)
+vcf-design-studio-v6.html         standalone runnable app (open in browser)
+vcf-design-studio-v6.jsx          source JSX (React components)
 engine.js                          pure sizing engine (shared between HTML + tests)
 
 scripts/
@@ -422,12 +510,13 @@ scripts/
 
 test-fixtures/
 ├── v5/                             18 canonical fleet scenarios (see table above)
+├── v6/                             6 network-populated fixtures
 ├── v3/, v2/                        legacy imports used by migration tests
 └── snapshots/                      committed sizing snapshots per fixture
 
 tests/
 ├── unit/                           Vitest unit tests (pure engine functions)
-├── migration/                      v2→v3→v5 migration suites
+├── migration/                      v2→v3→v5→v6 migration suites
 ├── snapshot/                       sizing snapshot regression guard
 ├── invariants/                     fast-check property-based tests
 └── e2e/                            Playwright browser tests
@@ -442,15 +531,40 @@ tests/
 Run `npm test` for the full Vitest suite (unit + migration + snapshot +
 invariants), `npm run test:e2e` for Playwright. Current counts:
 
-- **731 automated checks** across 23 test files
-- Engine coverage: 98.5% stmts / 78.5% branches / 97.95% funcs
-- 18 v5 fixtures + 1 v3 fixture + 1 v2 fixture covering every `VCF-TOPO-*`,
-  `VCF-PATH-*`, `VCF-DR-*`, `VCF-SSO-*` and major policy permutation
+- **922 automated checks** across 28 test files
+- Engine coverage: 98.4% stmts / 75.5% branches / 98.4% funcs
+- 18 v5 fixtures + 6 v6 network fixtures + 1 v3 fixture + 1 v2 fixture
+  covering every `VCF-TOPO-*`, `VCF-PATH-*`, `VCF-DR-*`, `VCF-SSO-*`,
+  `VCF-NET-*`, `VCF-IP-*`, `VCF-HW-NET-*` and major policy permutation
 - 6 Playwright smoke tests exercising UI shell, tab switching, overlay
   panels, and full-fixture round-trip import
 
 Rule IDs (`VCF-INV-*`, `VCF-APP-*`, etc.) appear in test `describe()` titles
 so `grep -r "VCF-INV-" tests/` produces a complete coverage matrix.
+
+## Networking Design (v6)
+
+The studio models the full VCF networking stack alongside compute sizing:
+
+- **NIC Profiles** — 4 canned layouts (2-NIC / 4-NIC / 6-NIC / 8-NIC) defining
+  physical vmnic → vDS → portgroup mappings. Selectable per cluster.
+- **VLAN / Subnet / IP Pool** — per-cluster configuration for Management, vMotion,
+  vSAN, Host TEP, and Edge TEP networks with gateway and IP pool ranges.
+- **IP Allocator** — deterministic pool-driven allocation of per-host IPs (vmk0
+  mgmt, vmk1 vMotion, vmk2 vSAN, vmk10/11 TEP). Per-host overrides supported.
+  DHCP path for host TEP.
+- **Network Validation** — 13 rules (VCF-IP-001..007, VCF-NET-010/011/030/031,
+  VCF-HW-NET-020/022) checking VLAN uniqueness, pool sizing, subnet containment,
+  MTU minimums, and BGP peer reachability.
+- **Export: VCF Installer JSON** — produces `bringup-spec.json`-shaped output with
+  `dnsSpec`, `ntpServers`, `networkSpecs`, `hostSpecs`, and `edgeSpecs`.
+- **Export: Workbook CSV** — produces Planning Workbook rows for Fleet Services,
+  Network Configuration, IP Address Plan, and BGP Configuration sheets.
+- **Network View tab** — dedicated visualization with Physical NIC diagrams,
+  VLAN/Subnet map, NSX Edge/T0 topology, and per-host IP grid.
+
+Network rules are documented in [VCF-NETWORKING-PATTERNS.md](VCF-NETWORKING-PATTERNS.md).
+
 
 ## Related Documents
 
@@ -458,8 +572,9 @@ so `grep -r "VCF-INV-" tests/` produces a complete coverage matrix.
   catalog of VCF 9.0 placement rules, fleet topologies, and invariants.
   Engine `APPLIANCE_DB` ids and scopes are the stable contract against
   this doc.
-- [FEATURE-COMPLETENESS.md](FEATURE-COMPLETENESS.md) — gap analysis between
-  research-doc capabilities and studio features; all items ✅ shipped.
+- [VCF-NETWORKING-PATTERNS.md](VCF-NETWORKING-PATTERNS.md) — Phase 0 research
+  deliverable: VCF 9.0 networking design rules. Rule IDs `VCF-NET-*`,
+  `VCF-IP-*`, `VCF-HW-NET-*` are the validation contract.
 
 ## Provenance
 

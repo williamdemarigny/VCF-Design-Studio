@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // verify-html-sync.mjs — CI guard for the build-free runtime contract.
 //
-// vcf-design-studio-v5.html is a generated artifact (engine.js + .jsx stitched
+// vcf-design-studio-v6.html is a generated artifact (engine.js + .jsx stitched
 // together by scripts/build-html.mjs). If a contributor edits the .html by
 // hand — or forgets to re-run build-html after editing engine.js or the .jsx —
 // the runtime will drift from the source.
@@ -34,10 +34,10 @@ for (let i = 0; i < Math.max(a.length, b.length); i++) {
 console.error("verify-html-sync: committed HTML differs from freshly-generated output.");
 console.error("");
 console.error("This means either:");
-console.error("  - engine.js or vcf-design-studio-v5.jsx was edited without re-running build-html, or");
-console.error("  - vcf-design-studio-v5.html was edited by hand (it is a generated artifact).");
+console.error("  - engine.js or vcf-design-studio-v6.jsx was edited without re-running build-html, or");
+console.error("  - vcf-design-studio-v6.html was edited by hand (it is a generated artifact).");
 console.error("");
-console.error("Fix:  npm run build-html  &&  git add vcf-design-studio-v5.html");
+console.error("Fix:  npm run build-html  &&  git add vcf-design-studio-v6.html");
 console.error("");
 if (firstDiff >= 0) {
   console.error(`First divergence at line ${firstDiff + 1}:`);
