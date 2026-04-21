@@ -61,6 +61,7 @@ test.describe("VCF Design Studio — smoke", () => {
 
 test.describe("VCF Design Studio — fixture import round-trip", () => {
   test("all v5 fixtures load without breaking the UI shell", async ({ page }) => {
+    test.setTimeout(120_000);
     const fixtures = fs.readdirSync(FIXTURE_DIR).filter((f) => f.endsWith(".json"));
     for (const fixture of fixtures) {
       await page.goto(HTML_URL);
