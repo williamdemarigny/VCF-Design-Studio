@@ -215,6 +215,7 @@
                 "localSiteId": "site-0001",
                 "name": "Management Domain",
                 "placement": "local",
+                "stretchSiteIds": null,
                 "type": "mgmt",
                 "wldStack": []
               },

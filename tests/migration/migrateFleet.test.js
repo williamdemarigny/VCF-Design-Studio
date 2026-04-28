@@ -71,6 +71,50 @@ describe("migrateFleet — idempotency on v5 fixtures", () => {
   });
 });
 
+describe("migrateFleet — v5→v6 backfills dom.stretchSiteIds", () => {
+  it("backfills stretchSiteIds on stretched domains missing the field", () => {
+    const fleet = newFleet();
+    fleet.sites.push({ id: "site-2", name: "B", location: "", region: "", siteRole: "" });
+    fleet.instances[0].siteIds = [fleet.sites[0].id, "site-2"];
+    for (const dom of fleet.instances[0].domains) {
+      dom.placement = "stretched";
+      delete dom.stretchSiteIds;
+    }
+    const r = migrateFleet({ version: "vcf-sizer-v5", fleet });
+    for (const dom of r.instances[0].domains) {
+      expect(dom.stretchSiteIds).toEqual([fleet.sites[0].id, "site-2"]);
+    }
+  });
+
+  it("keeps stretchSiteIds null on local domains", () => {
+    const fleet = newFleet();
+    for (const dom of fleet.instances[0].domains) {
+      dom.placement = "local";
+      dom.localSiteId = fleet.sites[0].id;
+      dom.stretchSiteIds = ["garbage-a", "garbage-b"];
+    }
+    const r = migrateFleet({ version: "vcf-sizer-v5", fleet });
+    for (const dom of r.instances[0].domains) {
+      expect(dom.stretchSiteIds).toBeNull();
+    }
+  });
+
+  it("preserves an already-populated stretchSiteIds pair (idempotent)", () => {
+    const fleet = newFleet();
+    fleet.sites.push({ id: "site-2", name: "B", location: "", region: "", siteRole: "" });
+    fleet.sites.push({ id: "site-3", name: "C", location: "", region: "", siteRole: "" });
+    fleet.instances[0].siteIds = [fleet.sites[0].id, "site-2", "site-3"];
+    for (const dom of fleet.instances[0].domains) {
+      dom.placement = "stretched";
+      dom.stretchSiteIds = [fleet.sites[0].id, "site-3"];
+    }
+    const r = migrateFleet({ version: "vcf-sizer-v5", fleet });
+    for (const dom of r.instances[0].domains) {
+      expect(dom.stretchSiteIds).toEqual([fleet.sites[0].id, "site-3"]);
+    }
+  });
+});
+
 describe("migrateFleet — v5 normalization adds missing hyperthreadingEnabled", () => {
   it("inserts hyperthreadingEnabled=false on every cluster missing the field", () => {
     const fleet = newFleet();

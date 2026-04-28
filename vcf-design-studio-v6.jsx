@@ -213,21 +213,26 @@ function PerSiteView({ fleet, fleetResult }) {
 
           // Failover rollup for THIS site: walk every stretched cluster this
           // site participates in and bucket each by verdict. "This site"
-          // here means "the survivor if the other site fails". A stretched
-          // instance with siteIds[0] === sr.site.id reads its siteA verdict;
-          // siteIds[1] === sr.site.id reads siteB. Each row records the
-          // owning domain/cluster so the panel can list red ones explicitly.
+          // here means "the survivor if the other site fails". Each
+          // stretched domain carries its own 2-site pair in dom.stretchSiteIds,
+          // so the verdict lookup is resolved per-domain: if this site is
+          // the pair's stretchSiteIds[0] we read siteA, if it's [1] we read
+          // siteB. A single VCF instance can touch 3+ sites with different
+          // pairs per domain — iterating domains (not instances) keeps the
+          // rollup correct.
           const foRollup = { green: 0, yellow: 0, red: 0, reds: [], yellows: [], total: 0, otherSites: new Set() };
           for (const ir of fleetResult.instanceResults || []) {
             const inst = ir.instance;
-            if (!inst.siteIds || inst.siteIds.length !== 2) continue;
-            const idxHere = inst.siteIds.indexOf(sr.site.id);
-            if (idxHere < 0) continue;
-            const otherId = inst.siteIds[1 - idxHere];
-            const otherName = fleet.sites.find((s) => s.id === otherId)?.name || "other site";
-            foRollup.otherSites.add(otherName);
+            if (!inst.siteIds || !inst.siteIds.includes(sr.site.id)) continue;
             inst.domains.forEach((dom, dIdx) => {
               if (dom.placement !== "stretched") return;
+              const pair = Array.isArray(dom.stretchSiteIds) ? dom.stretchSiteIds : null;
+              if (!pair || pair.length !== 2) return;
+              const idxHere = pair.indexOf(sr.site.id);
+              if (idxHere < 0) return; // this site isn't part of THIS domain's pair
+              const otherId = pair[1 - idxHere];
+              const otherName = fleet.sites.find((s) => s.id === otherId)?.name || "other site";
+              foRollup.otherSites.add(otherName);
               const dr = ir.domainResults[dIdx];
               if (!dr) return;
               dom.clusters.forEach((clu, cIdx) => {
@@ -362,7 +367,9 @@ function PerSiteView({ fleet, fleetResult }) {
                           {p.projectedDomains.flatMap((pd) =>
                             pd.projectedClusters.map((pc) => {
                               const isStretchedDom =
-                                pd.domain.placement === "stretched" && p.instance.siteIds.length === 2;
+                                pd.domain.placement === "stretched"
+                                && Array.isArray(pd.domain.stretchSiteIds)
+                                && pd.domain.stretchSiteIds.length === 2;
                               return (
                                 <tr key={pc.cluster.id} className="border-t border-slate-100">
                                   <td className="py-1.5 pl-1 text-slate-700">
@@ -1676,9 +1683,18 @@ function DomainCard({ domain, isStretched, instanceSiteIds, allSites, eligibleCl
   // unprojectable; we keep any existing pin that's still valid.
   const handleStretchedToggle = (checked) => {
     if (checked) {
-      update({ placement: "stretched", localSiteId: null });
+      // Default the stretched pair to the first two sites on the instance
+      // (today's 2-site instances have exactly one valid choice; multi-site
+      // instances pick the pair explicitly in Phase 4).
+      const prevPair = Array.isArray(domain.stretchSiteIds) ? domain.stretchSiteIds : [];
+      const pairStillValid =
+        prevPair.length === 2 && prevPair.every((sid) => siteIds.includes(sid));
+      const nextPair = pairStillValid
+        ? prevPair
+        : siteIds.length >= 2 ? [siteIds[0], siteIds[1]] : null;
+      update({ placement: "stretched", localSiteId: null, stretchSiteIds: nextPair });
     } else {
-      update({ placement: "local", localSiteId: effectiveLocalSiteId });
+      update({ placement: "local", localSiteId: effectiveLocalSiteId, stretchSiteIds: null });
     }
   };
 
@@ -1711,8 +1727,9 @@ function DomainCard({ domain, isStretched, instanceSiteIds, allSites, eligibleCl
           )}
         </div>
         <div className="flex items-center gap-3">
-          {/* Local domain → per-site pinner (only meaningful when the instance touches 2 sites) */}
-          {isStretched && !isStretchedDomain && siteIds.length === 2 && (
+          {/* Local domain → per-site pinner. Shown whenever the instance
+              touches 2+ sites so the user can pin to any of them. */}
+          {isStretched && !isStretchedDomain && siteIds.length >= 2 && (
             <div className="flex items-center gap-0.5 bg-slate-50 border border-slate-200 rounded p-0.5">
               {siteIds.map((sid) => {
                 const site = (allSites || []).find((s) => s.id === sid);
@@ -1758,6 +1775,58 @@ function DomainCard({ domain, isStretched, instanceSiteIds, allSites, eligibleCl
           )}
         </div>
       </div>
+
+      {isStretchedDomain && siteIds.length > 2 && (
+        <div className="bg-blue-50 border border-blue-200 rounded px-4 py-3 mb-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-blue-800 font-mono font-semibold uppercase tracking-wider">
+              ↔ Stretch Pair — Which Two Sites
+            </span>
+            <span className="text-[10px] text-blue-600 font-mono italic">
+              Instance touches {siteIds.length} sites · pick the 2 this domain stretches across
+            </span>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div>
+              <div className="text-[10px] text-blue-700 font-mono mb-1 uppercase tracking-wider">Primary</div>
+              <select
+                value={(domain.stretchSiteIds || [])[0] || ""}
+                onChange={(e) => {
+                  const a = e.target.value;
+                  const b = (domain.stretchSiteIds || [])[1];
+                  const next = [a, b === a ? siteIds.find((s) => s !== a) : b].filter(Boolean);
+                  update({ stretchSiteIds: next.length === 2 ? next : [a, siteIds.find((s) => s !== a)] });
+                }}
+                className="text-xs font-mono bg-white border border-blue-200 rounded px-2 py-1"
+              >
+                {siteIds.map((sid) => {
+                  const s = (allSites || []).find((x) => x.id === sid);
+                  return <option key={sid} value={sid}>{s?.name || sid}</option>;
+                })}
+              </select>
+            </div>
+            <span className="text-blue-600 font-mono mt-4">↔</span>
+            <div>
+              <div className="text-[10px] text-blue-700 font-mono mb-1 uppercase tracking-wider">Secondary</div>
+              <select
+                value={(domain.stretchSiteIds || [])[1] || ""}
+                onChange={(e) => {
+                  const b = e.target.value;
+                  const a = (domain.stretchSiteIds || [])[0];
+                  const next = [a === b ? siteIds.find((s) => s !== b) : a, b].filter(Boolean);
+                  update({ stretchSiteIds: next.length === 2 ? next : [siteIds.find((s) => s !== b), b] });
+                }}
+                className="text-xs font-mono bg-white border border-blue-200 rounded px-2 py-1"
+              >
+                {siteIds.map((sid) => {
+                  const s = (allSites || []).find((x) => x.id === sid);
+                  return <option key={sid} value={sid}>{s?.name || sid}</option>;
+                })}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isStretchedDomain && (
         <div className="bg-blue-50 border border-blue-200 rounded px-4 py-3 mb-3">
@@ -1864,10 +1933,12 @@ function DomainCard({ domain, isStretched, instanceSiteIds, allSites, eligibleCl
       {domain.clusters.map((c, i) => {
         // Resolve friendly site names for the failover badge so it reads
         // "Site WH200" / "Site ARS" instead of raw ids. Only meaningful when
-        // the instance actually spans two sites and this domain is stretched.
+        // this domain has an explicit 2-site stretch pair.
         const failoverSiteNames =
-          (instanceSiteIds || []).length === 2 && domain.placement === "stretched"
-            ? instanceSiteIds.map((id) => (allSites || []).find((s) => s.id === id)?.name || id)
+          domain.placement === "stretched"
+            && Array.isArray(domain.stretchSiteIds)
+            && domain.stretchSiteIds.length === 2
+            ? domain.stretchSiteIds.map((id) => (allSites || []).find((s) => s.id === id)?.name || id)
             : null;
         return (
           <ClusterCard
@@ -1899,7 +1970,11 @@ function DomainCard({ domain, isStretched, instanceSiteIds, allSites, eligibleCl
 // INSTANCE CARD — VCF instance, contains 1 mgmt + N workload domains
 // ─────────────────────────────────────────────────────────────────────────────
 function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, canRemove, result, isInitial, canPromote, onPromoteToInitial }) {
-  const isStretchedInstance = (instance.siteIds || []).length === 2;
+  // True when the instance touches 2 or more sites (potentially stretched).
+  // N-site instances (3+) are allowed; the first two sites form the default
+  // stretched pair and additional sites host local-only domains unless
+  // explicitly moved into a stretch pair via the per-domain picker.
+  const isStretchedInstance = (instance.siteIds || []).length >= 2;
   const siteById = (id) => (allSites || []).find((s) => s.id === id);
   const update = (patch) => onChange({ ...instance, ...patch });
 
@@ -1947,19 +2022,21 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
     onChange({ ...instance, deploymentProfile: profileKey, domains: newDomains });
   };
 
-  // Toggle a site's membership in this instance. Caps at 2 sites. Handles
-  // placement transitions and re-pins local-domain localSiteIds so they
-  // always point at one of the instance's current sites (invariant).
+  // Toggle a site's membership in this instance. Supports N sites: the first
+  // two form the default stretched pair (preserving legacy 2-site behavior),
+  // and sites 3+ host local-only domains unless explicitly opted into a
+  // stretch pair via the per-domain picker. Handles placement transitions
+  // and re-pins local-domain localSiteIds so they always point at one of
+  // the instance's current sites (invariant).
   const toggleSite = (siteId) => {
     const current = instance.siteIds || [];
     let nextIds;
     if (current.includes(siteId)) {
       nextIds = current.filter((id) => id !== siteId);
     } else {
-      if (current.length >= 2) return;
       nextIds = [...current, siteId];
     }
-    const becameStretched = current.length < 2 && nextIds.length === 2;
+    const becameStretched = current.length < 2 && nextIds.length >= 2;
 
     const nextDomains = instance.domains.map((d) => {
       if (nextIds.length < 2) {
@@ -1970,6 +2047,7 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
           ...d,
           placement: "local",
           localSiteId: nextIds[0] || null,
+          stretchSiteIds: null,
         };
       }
       // nextIds.length === 2 from here on.
@@ -1981,6 +2059,7 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
           placement: "stretched",
           hostSplitPct: getHostSplitPct(d),
           localSiteId: null,
+          stretchSiteIds: [nextIds[0], nextIds[1]],
         };
       }
       if (d.placement === "local") {
@@ -1989,9 +2068,18 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
         // site was swapped for another, or the 1→2 case for workload domains.
         const keep =
           d.localSiteId && nextIds.includes(d.localSiteId) ? d.localSiteId : nextIds[0];
-        return { ...d, localSiteId: keep };
+        return { ...d, localSiteId: keep, stretchSiteIds: null };
       }
-      return d;
+      // d.placement === "stretched" — reconcile stretchSiteIds with the new
+      // site set. If the current pair still sits inside nextIds, keep it;
+      // otherwise re-pin to the first two site ids on the instance.
+      const prevPair = Array.isArray(d.stretchSiteIds) ? d.stretchSiteIds : [];
+      const pairStillValid =
+        prevPair.length === 2 && prevPair.every((sid) => nextIds.includes(sid));
+      return {
+        ...d,
+        stretchSiteIds: pairStillValid ? prevPair : [nextIds[0], nextIds[1]],
+      };
     });
 
     onChange({ ...instance, siteIds: nextIds, domains: nextDomains });
@@ -2006,7 +2094,16 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
     const nextDomains = instance.domains.map((d) => {
       if (d.placement !== "stretched") return d;
       const pct = getHostSplitPct(d);
-      return { ...d, hostSplitPct: 100 - pct };
+      // If the stretched pair exactly matches the two instance sites, swap
+      // their order too — otherwise the stretchSiteIds are already independent
+      // of instance ordering (e.g. a 3-site instance where the pair is [A,C]
+      // and we swap A↔B). Keep those untouched.
+      const prevPair = Array.isArray(d.stretchSiteIds) ? d.stretchSiteIds : null;
+      const nextPair =
+        prevPair && prevPair.length === 2 && prevPair[0] === ids[0] && prevPair[1] === ids[1]
+          ? [ids[1], ids[0]]
+          : prevPair;
+      return { ...d, hostSplitPct: 100 - pct, stretchSiteIds: nextPair };
     });
     onChange({ ...instance, siteIds: [ids[1], ids[0]], domains: nextDomains });
   };
@@ -2173,21 +2270,28 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
           {isStretchedInstance && (
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-slate-500 font-mono">
-                {siteById(instance.siteIds[0])?.name || "Site A"} ↔ {siteById(instance.siteIds[1])?.name || "Site B"}
+                {(instance.siteIds || []).length === 2
+                  ? `${siteById(instance.siteIds[0])?.name || "Site A"} ↔ ${siteById(instance.siteIds[1])?.name || "Site B"}`
+                  : `${(instance.siteIds || []).length} sites`}
               </span>
-              <button
-                onClick={swapSites}
-                title="Swap site order — flips host-split direction without moving hosts"
-                className="text-[9px] uppercase tracking-wider text-slate-400 hover:text-blue-600 border border-slate-200 hover:border-blue-400 rounded px-2 py-0.5 transition-colors font-mono"
-              >
-                ⇄ Swap
-              </button>
+              {(instance.siteIds || []).length === 2 && (
+                <button
+                  onClick={swapSites}
+                  title="Swap site order — flips host-split direction without moving hosts"
+                  className="text-[9px] uppercase tracking-wider text-slate-400 hover:text-blue-600 border border-slate-200 hover:border-blue-400 rounded px-2 py-0.5 transition-colors font-mono"
+                >
+                  ⇄ Swap
+                </button>
+              )}
             </div>
           )}
         </div>
         <p className="text-[10px] text-slate-500 font-mono mb-3 leading-relaxed">
-          Select up to two sites. One site = single-site deployment. Two sites = stretched VCF
-          instance with ONE shared appliance stack referenced by both sites.
+          Select one or more sites. One site = single-site deployment. Two or more sites =
+          multi-site deployment under ONE shared SDDC Manager / vCenter control plane. The
+          first two selected sites form the default stretched pair for the Mgmt domain;
+          additional sites host local workload domains (remote-managed from the primary).
+          Per-domain placement (local @ site, or stretched A↔B) is chosen below.
         </p>
         {(allSites || []).length === 0 ? (
           <p className="text-[10px] text-rose-600 font-mono mb-3">
@@ -2197,7 +2301,7 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
           <div className="grid grid-cols-2 gap-2 mb-3">
             {(allSites || []).map((s) => {
               const checked = (instance.siteIds || []).includes(s.id);
-              const disabled = !checked && (instance.siteIds || []).length >= 2;
+              const disabled = false;
               return (
                 <label
                   key={s.id}
@@ -2228,12 +2332,13 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
         {isStretchedInstance && (
           <>
             <p className="text-[10px] text-slate-500 font-mono leading-relaxed mb-3">
-              Stretched VCF instances span two physical sites with synchronous storage replication.
-              This can be achieved via vSAN stretched cluster (requires a witness host at a third
-              fault domain) or array-based synchronous replication (FC/iSCSI with vendor-specific
-              replication such as Dell SRDF, Pure ActiveCluster, or NetApp MetroCluster). Both
-              methods require L2 network stretch via NSX. The instance has ONE shared appliance
-              stack — not two.
+              Multi-site VCF instances run under ONE shared SDDC Manager / vCenter control plane.
+              A stretched pair between two of the selected sites uses synchronous storage
+              replication — either vSAN stretched cluster (requires a witness at a third fault
+              domain) or array-based synchronous replication (FC/iSCSI with vendor-specific
+              replication such as Dell SRDF, Pure ActiveCluster, or NetApp MetroCluster). Stretched
+              pairs require L2 network stretch via NSX. Additional sites beyond the stretch pair
+              host local (non-replicated) workload domains that this instance manages remotely.
             </p>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <TextField
@@ -2278,7 +2383,11 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
 
             {/* Witness Appliance Sizing */}
             {(() => {
-              const stretchedDomains = instance.domains.filter((d) => d.placement === "stretched");
+              const stretchedDomains = instance.domains.filter(
+                (d) => d.placement === "stretched"
+                  && Array.isArray(d.stretchSiteIds)
+                  && d.stretchSiteIds.length === 2
+              );
               const stretchedClusterCount = stretchedDomains.reduce((s, d) => s + d.clusters.length, 0);
               if (stretchedClusterCount === 0) return null;
               const wDef = APPLIANCE_DB.vsanWitness;
@@ -2376,11 +2485,11 @@ function InstanceCard({ instance, allSites, allInstances, onChange, onRemove, ca
               </span>
               <p className="text-[10px] text-blue-700 font-mono mt-1">
                 Each domain below can be set to <strong>Local</strong> (runs at one site only) or{" "}
-                <strong>Stretched</strong> (spans both sites via synchronous storage replication).
-                The management domain auto-stretched when you added the second site. Workload
-                domains default to Local — toggle individually. The host-split slider on each
-                stretched domain controls how many physical hosts land at {siteById(instance.siteIds[0])?.name || "Site A"} vs{" "}
-                {siteById(instance.siteIds[1])?.name || "Site B"}.
+                <strong>Stretched</strong> (spans a pair of sites via synchronous storage replication).
+                The management domain auto-stretched across the first two sites you added. Workload
+                domains default to Local — toggle individually. When the instance touches 3+ sites,
+                each stretched domain declares its own pair (primary ↔ secondary) and local domains
+                pin to any one site.
               </p>
             </div>
           </>
@@ -2758,7 +2867,7 @@ function TopologyView({ fleet, fleetResult, setFleet }) {
                 <TopologyConnector key={`c-${i}`} from={conn.from} to={conn.to} />
               ))}
               {(logicalLayout.stretchedConnectors || []).map((conn, i) => (
-                <TopologyConnector key={`sc-${i}`} from={conn.from} to={conn.to} dashed />
+                <TopologyConnector key={`sc-${i}`} from={conn.from} to={conn.to} dashed kind={conn.kind} />
               ))}
               {logicalLayout.boxes.map((box) => (
                 <TopologyBox key={box.id} box={box} />
@@ -3083,7 +3192,7 @@ function TopologyBox({ box }) {
   );
 }
 
-function TopologyConnector({ from, to, dashed }) {
+function TopologyConnector({ from, to, dashed, kind }) {
   const x1 = from.x + from.width;
   const y1 = from.y + from.height / 2;
   const x2 = to.x;
@@ -3091,10 +3200,15 @@ function TopologyConnector({ from, to, dashed }) {
   const midX = (x1 + x2) / 2;
   const path = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
 
+  // stretched-peer: blue (part of a stretched pair)
+  // additional-site: purple (instance manages this remote site but doesn't
+  // stretch across it — e.g. a local WLD living at a 3rd region)
+  const color = !dashed ? "#94a3b8" : kind === "additional-site" ? "#a855f7" : "#2563eb";
+
   return (
     <path
       d={path}
-      stroke={dashed ? "#2563eb" : "#94a3b8"}
+      stroke={color}
       strokeWidth={dashed ? 1.8 : 1.2}
       strokeDasharray={dashed ? "6 3" : "none"}
       fill="none"
@@ -3170,7 +3284,12 @@ function computeTopologyLayout(fleet, fleetResult) {
   fleet.instances.forEach((inst, iIdx) => {
     const ir = fleetResult.instanceResults[iIdx];
     if (!ir) return;
-    const isStretched = (inst.siteIds || []).length === 2;
+    const hasAnyStretchedDomain = inst.domains.some(
+      (d) => d.placement === "stretched"
+        && Array.isArray(d.stretchSiteIds)
+        && d.stretchSiteIds.length === 2
+    );
+    const touchesMultipleSites = (inst.siteIds || []).length >= 2;
     const profileLabel = DEPLOYMENT_PROFILES[inst.deploymentProfile]?.label || "Custom";
 
     const domBoxes = [];
@@ -3208,7 +3327,11 @@ function computeTopologyLayout(fleet, fleetResult) {
         domY = PADDING + currentRow * (BOX_HEIGHT + ROW_GAP);
         currentRow++;
       }
-      const stretchedTag = isStretched && dom.placement === "stretched" ? "↔ Stretched · " : "";
+      const isStretchedDom =
+        dom.placement === "stretched"
+        && Array.isArray(dom.stretchSiteIds)
+        && dom.stretchSiteIds.length === 2;
+      const stretchedTag = isStretchedDom ? "↔ Stretched · " : "";
       const domBox = {
         id: dom.id,
         x: colX(DOM_COL),
@@ -3244,14 +3367,14 @@ function computeTopologyLayout(fleet, fleetResult) {
       kind: "instance",
       label: inst.name,
       subtitle: `${ir.totalHosts} hosts · ${fmt(ir.totalCores)} cores`,
-      subtitle2: `${profileLabel}${isStretched ? " · ↔ Stretched" : ""} · ${inst.domains.length} dom`,
+      subtitle2: `${profileLabel}${hasAnyStretchedDomain ? " · ↔ Stretched" : touchesMultipleSites ? " · multi-site" : ""} · ${inst.domains.length} dom`,
     };
     boxes.push(instBox);
     domBoxes.forEach((db) => connectors.push({ from: instBox, to: db }));
     instanceBoxes.push({ instBox, inst });
 
     // Witness box collected separately — appended after the main loop.
-    if (isStretched && inst.witnessEnabled !== false && inst.witnessSite?.name) {
+    if (hasAnyStretchedDomain && inst.witnessEnabled !== false && inst.witnessSite?.name) {
       witnessBoxes.push({
         id: `witness-${inst.id}`,
         x: colX(INST_COL),
@@ -3284,15 +3407,34 @@ function computeTopologyLayout(fleet, fleetResult) {
     sBox.subtitle2 = `${refCount} instance${refCount === 1 ? "" : "s"}`;
   });
 
-  // Step 4: build site→instance connectors. Solid for siteIds[0], dashed
-  // blue for siteIds[1]. Skip silently if a referenced site no longer exists.
+  // Step 4: build site→instance connectors. The first site is the instance's
+  // primary anchor (solid). Any remaining sites that participate in a
+  // stretched pair on this instance become dashed-blue peer connectors; the
+  // rest (additional sites that host only local domains) become dashed
+  // connectors too. Skip silently if a referenced site no longer exists.
   instanceBoxes.forEach(({ instBox, inst }) => {
     const ids = inst.siteIds || [];
+    if (ids.length === 0) return;
+    const stretchedSitesForInstance = new Set();
+    for (const d of inst.domains || []) {
+      const pair = Array.isArray(d.stretchSiteIds) ? d.stretchSiteIds : null;
+      if (d.placement === "stretched" && pair && pair.length === 2) {
+        pair.forEach((sid) => stretchedSitesForInstance.add(sid));
+      }
+    }
     if (ids[0] && siteBoxes[ids[0]]) {
       connectors.push({ from: siteBoxes[ids[0]], to: instBox });
     }
-    if (ids[1] && siteBoxes[ids[1]]) {
-      stretchedConnectors.push({ from: siteBoxes[ids[1]], to: instBox, dashed: true });
+    for (let k = 1; k < ids.length; k++) {
+      const sid = ids[k];
+      if (sid && siteBoxes[sid]) {
+        stretchedConnectors.push({
+          from: siteBoxes[sid],
+          to: instBox,
+          dashed: true,
+          kind: stretchedSitesForInstance.has(sid) ? "stretched-peer" : "additional-site",
+        });
+      }
     }
   });
 
@@ -3381,24 +3523,35 @@ function computePhysicalLayout(fleet, fleetResult) {
   fleet.instances.forEach((inst, iIdx) => {
     const ir = fleetResult.instanceResults[iIdx];
     if (!ir) return;
-    const isStretched = (inst.siteIds || []).length === 2;
+    // Collect the union of site ids touched by any stretched domain on this
+    // instance — used to decide where to anchor the witness box. An instance
+    // can touch 3+ sites but only stretch specific pairs; the witness only
+    // connects to sites participating in a stretched pair.
+    const stretchedPairSites = new Set();
+    let instanceHasStretchedDomain = false;
 
     inst.domains.forEach((dom, dIdx) => {
       const dr = ir.domainResults[dIdx];
       if (!dr) return;
+      const pair = Array.isArray(dom.stretchSiteIds) ? dom.stretchSiteIds : null;
+      const isStretchedDomain =
+        dom.placement === "stretched" && pair && pair.length === 2;
 
-      if (isStretched && dom.placement === "stretched") {
-        // Stretched domain appears in both sites
-        inst.siteIds.forEach((sId) => {
+      if (isStretchedDomain) {
+        instanceHasStretchedDomain = true;
+        pair.forEach((sId) => stretchedPairSites.add(sId));
+        // Stretched domain appears in both of ITS pair sites (not necessarily
+        // all of inst.siteIds).
+        pair.forEach((sId) => {
           if (siteDomains[sId]) {
             const pct = getHostSplitPct(dom);
-            const sharePct = sId === inst.siteIds[0] ? pct : 100 - pct;
+            const sharePct = sId === pair[0] ? pct : 100 - pct;
             siteDomains[sId].push({ dom, dr, inst, ir, sharePct, stretched: true });
           }
         });
-        stretchedPairs.push({ domId: dom.id, siteIds: inst.siteIds, dom, hostSplitPct: dom.hostSplitPct });
+        stretchedPairs.push({ domId: dom.id, siteIds: pair, dom, hostSplitPct: dom.hostSplitPct });
       } else {
-        // Local domain — pinned to localSiteId or siteIds[0]
+        // Local domain — pinned to localSiteId or falls back to siteIds[0].
         const targetSite = dom.localSiteId && inst.siteIds.includes(dom.localSiteId)
           ? dom.localSiteId : inst.siteIds[0];
         if (siteDomains[targetSite]) {
@@ -3407,19 +3560,41 @@ function computePhysicalLayout(fleet, fleetResult) {
       }
     });
 
-    // Collect witness
-    if (isStretched && inst.witnessEnabled !== false && inst.witnessSite?.name && ir.witness) {
+    // Collect witness — only when at least one domain is actually stretched.
+    if (instanceHasStretchedDomain && inst.witnessEnabled !== false && inst.witnessSite?.name && ir.witness) {
       witnesses.push({
         id: `witness-${inst.id}`,
         label: `Witness: ${inst.witnessSite.name}`,
         size: inst.witnessSize || "Medium",
         instanceName: inst.name,
-        siteIds: inst.siteIds,
+        siteIds: [...stretchedPairSites],
         vcpu: ir.witness.vcpu,
         ram: ir.witness.ram,
         instances: ir.witness.instances,
       });
     }
+  });
+
+  // Order domains within each site: Mgmt domains always render first (on top)
+  // regardless of which VCF instance owns them, followed by workload domains.
+  // Within each kind, preserve fleet instance order, then original relative
+  // order. This guarantees a Mgmt domain never appears below a WLD at any site
+  // — e.g. when one instance's stretched WLD shares a site with another
+  // instance's local Mgmt.
+  const instOrder = new Map(fleet.instances.map((inst, i) => [inst.id, i]));
+  Object.keys(siteDomains).forEach((sId) => {
+    siteDomains[sId] = siteDomains[sId]
+      .map((entry, idx) => ({ entry, idx }))
+      .sort((a, b) => {
+        const aMgmt = a.entry.dom.type === "mgmt" ? 0 : 1;
+        const bMgmt = b.entry.dom.type === "mgmt" ? 0 : 1;
+        if (aMgmt !== bMgmt) return aMgmt - bMgmt;
+        const aI = instOrder.get(a.entry.inst.id) ?? 0;
+        const bI = instOrder.get(b.entry.inst.id) ?? 0;
+        if (aI !== bI) return aI - bI;
+        return a.idx - b.idx;
+      })
+      .map((x) => x.entry);
   });
 
   // Lay out each site
@@ -3648,21 +3823,42 @@ function PhysicalTopologyView({ fleet, fleetResult, setFleet }) {
     }
   }, [fleet, fleetResult]);
 
-  // Move one VM of an appliance from the current site to the other site
+  // Move one VM of an appliance from the current site to "the other site" of
+  // the appliance's owning domain pair. For a stretched domain A↔B, an
+  // appliance VM at A moves to B (and vice versa) regardless of how many
+  // other sites the instance touches. Local-domain appliances are not
+  // movable and this should never fire for them (upstream canMove gate).
   const moveAppliance = (instId, appKey, fromSiteId) => {
     setFleet((prev) => ({
       ...prev,
       instances: prev.instances.map((inst) => {
         if (inst.id !== instId) return inst;
         if ((inst.siteIds || []).length < 2) return inst;
-        const otherSite = inst.siteIds.find((s) => s !== fromSiteId) || inst.siteIds[1];
+        // Locate the owning domain by finding the entry with matching key.
+        let owningPair = null;
+        for (const dom of inst.domains || []) {
+          const matches =
+            (dom.clusters || []).some((c) => (c.infraStack || []).some((e) => e.key === appKey))
+            || (dom.wldStack || []).some((e) => e.key === appKey);
+          if (matches) {
+            if (dom.placement === "stretched"
+                && Array.isArray(dom.stretchSiteIds)
+                && dom.stretchSiteIds.length === 2) {
+              owningPair = dom.stretchSiteIds;
+            }
+            break;
+          }
+        }
+        // Fall back to the instance's first 2 siteIds if we can't resolve
+        // the owning domain's pair (legacy 2-site data path).
+        const pair = owningPair || [inst.siteIds[0], inst.siteIds[1]];
+        if (!pair.includes(fromSiteId)) return inst;
+        const otherSite = pair.find((s) => s !== fromSiteId);
+        if (!otherSite) return inst;
         const placement = ensurePlacement(inst);
         const arr = [...(placement[appKey] || [])];
-        // Find first entry matching fromSiteId and move it to otherSite
         const idx = arr.indexOf(fromSiteId);
         if (idx === -1) return inst;
-        // Don't allow moving the last VM off a site if it would leave 0 at fromSite
-        // (allow it — user may want all VMs at one site)
         arr[idx] = otherSite;
         return { ...inst, appliancePlacement: { ...placement, [appKey]: arr } };
       }),

@@ -156,4 +156,31 @@ describe("placement helpers", () => {
       for (const s of merged.vcenter_0) expect(["site-a", "site-b"]).toContain(s);
     }
   });
+
+  it("buildDefaultPlacement pins appliances of a local domain to its localSiteId only", () => {
+    const inst = newInstance("multi", ["site-a", "site-b", "site-c"]);
+    // Add a workload domain local to site-c with an infraStack entry.
+    const localC = {
+      id: "dom-c", type: "workload", name: "Remote C",
+      placement: "local", localSiteId: "site-c", stretchSiteIds: null,
+      hostSplitPct: 50, wldStack: [],
+      clusters: [{ id: "clu-c", name: "c1", isDefault: true,
+        infraStack: [{ id: "nsxLm", size: "Medium", instances: 3, key: "k-c" }],
+        host: {}, workload: {}, networks: {}, hostOverrides: [] }],
+      componentsClusterId: null,
+    };
+    inst.domains.push(localC);
+    const p = buildDefaultPlacement(inst);
+    expect(p["k-c"]).toEqual(["site-c", "site-c", "site-c"]);
+  });
+
+  it("buildDefaultPlacement distributes stretched domain appliances across stretchSiteIds only", () => {
+    // 3-site instance where the mgmt domain stretches A↔B but not C.
+    const inst = newInstance("multi", ["site-a", "site-b", "site-c"]);
+    // Mgmt domain carries infraStack via newMgmtCluster — find one of its keys.
+    const mgmt = inst.domains[0];
+    const mgmtKey = mgmt.clusters[0].infraStack[0].key;
+    const p = buildDefaultPlacement(inst);
+    for (const s of p[mgmtKey]) expect(["site-a", "site-b"]).toContain(s);
+  });
 });

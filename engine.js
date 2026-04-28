@@ -1502,8 +1502,13 @@ function newMgmtDomain(name = "Management Domain") {
     type: "mgmt",
     name,
     placement: "stretched", // mgmt domain defaults to stretched when instance is stretched
-    hostSplitPct: 50,       // % of hosts at siteIds[0] (rest at siteIds[1]) when stretched
+    hostSplitPct: 50,       // % of hosts at stretchSiteIds[0] (rest at stretchSiteIds[1]) when stretched
     localSiteId: null,      // when placement === "local", which site id the domain runs at
+    // When placement === "stretched", the exact pair of site ids this domain
+    // stretches across. Must be a 2-element subset of instance.siteIds. Null
+    // for local placement. Introduced to support VCF instances that touch
+    // 3+ sites where only some domains stretch across a specific pair.
+    stretchSiteIds: null,
     clusters: [newMgmtCluster()],
   };
 }
@@ -1513,9 +1518,10 @@ function newWorkloadDomain(name = "Workload Domain 01") {
     id: `dom-${cryptoKey()}`,
     type: "workload",
     name,
-    placement: "local",  // "local" = pinned to one site, "stretched" = spans both
-    hostSplitPct: 50,    // % of hosts at siteIds[0] when stretched
+    placement: "local",  // "local" = pinned to one site, "stretched" = spans a pair
+    hostSplitPct: 50,    // % of hosts at stretchSiteIds[0] when stretched
     localSiteId: null,   // set by the parent InstanceCard to a concrete site id
+    stretchSiteIds: null, // pair of site ids; set when placement === "stretched"
     // VCF domain services (dedicated vCenter, NSX Manager cluster, edges, Avi,
     // VCF Automation, etc.) for this workload domain. Does NOT include vCLS —
     // that is per-cluster baseline and lives in cluster.infraStack.
@@ -1536,6 +1542,20 @@ function newWorkloadDomain(name = "Workload Domain 01") {
 // Stretched clusters require synchronous storage replication (vSAN stretched
 // cluster or array-based replication) and L2 network stretch via NSX.
 function newInstance(name = "vcf-instance-01", siteIds = []) {
+  // Shape the default mgmt domain to match the siteIds passed in. The
+  // factory can't rely on the mgmt domain's own defaults (which assume a
+  // stretched pair) when the caller asks for a single-site or multi-site
+  // instance.
+  const mgmt = newMgmtDomain();
+  if (siteIds.length >= 2) {
+    mgmt.placement = "stretched";
+    mgmt.localSiteId = null;
+    mgmt.stretchSiteIds = [siteIds[0], siteIds[1]];
+  } else {
+    mgmt.placement = "local";
+    mgmt.localSiteId = siteIds[0] || null;
+    mgmt.stretchSiteIds = null;
+  }
   return {
     id: "inst-" + cryptoKey(),
     name,
@@ -1555,7 +1575,7 @@ function newInstance(name = "vcf-instance-01", siteIds = []) {
     // actively run fleet-level appliances even if they appear in its stack.
     drPosture: "active",
     drPairedInstanceId: null,
-    domains: [newMgmtDomain()],
+    domains: [mgmt],
   };
 }
 
@@ -1612,21 +1632,42 @@ function newFleet() {
   };
 }
 
-// Build default appliance-to-site assignments for a stretched instance.
-// Each appliance VM is assigned to a site in alternating fashion so the VMs
-// are roughly evenly distributed. Returns a map: { [applianceKey]: [siteId, ...] }
-// where the array length equals the appliance's `instances` count.
+// Resolve the set of site ids a single domain physically lives at. Stretched
+// domains return their explicit stretchSiteIds pair; local domains return
+// their localSiteId (falling back to the instance's first site for legacy
+// data that pre-dates explicit per-domain pinning).
+function domainSites(dom, instance) {
+  const instSiteIds = instance.siteIds || [];
+  if (dom.placement === "stretched"
+      && Array.isArray(dom.stretchSiteIds)
+      && dom.stretchSiteIds.length === 2) {
+    return dom.stretchSiteIds;
+  }
+  const localId =
+    dom.localSiteId && instSiteIds.includes(dom.localSiteId)
+      ? dom.localSiteId
+      : instSiteIds[0] || null;
+  return localId ? [localId] : [];
+}
+
+// Build default appliance-to-site assignments. For each appliance entry
+// we distribute its VM instances round-robin across the home sites of the
+// domain that owns the cluster the entry belongs to — the stretch pair for
+// a stretched domain, or the pinned site for a local domain. Returns a map:
+// { [applianceKey]: [siteId, ...] }.
 function buildDefaultPlacement(instance) {
   const siteIds = instance.siteIds || [];
   if (siteIds.length < 2) return {};
   const placement = {};
   for (const dom of instance.domains || []) {
+    const targets = domainSites(dom, instance);
+    if (!targets || targets.length === 0) continue;
     for (const clu of dom.clusters || []) {
       for (const entry of clu.infraStack || []) {
         const count = entry.instances || 1;
         const assigned = [];
         for (let i = 0; i < count; i++) {
-          assigned.push(siteIds[i % siteIds.length]);
+          assigned.push(targets[i % targets.length]);
         }
         placement[entry.key] = assigned;
       }
@@ -1636,7 +1677,7 @@ function buildDefaultPlacement(instance) {
         const count = entry.instances || 1;
         const assigned = [];
         for (let i = 0; i < count; i++) {
-          assigned.push(siteIds[i % siteIds.length]);
+          assigned.push(targets[i % targets.length]);
         }
         placement[entry.key] = assigned;
       }
@@ -1645,8 +1686,10 @@ function buildDefaultPlacement(instance) {
   return placement;
 }
 
-// Ensure instance.appliancePlacement exists and covers all current stack entries.
-// Adds missing keys with default alternating assignments, removes stale keys.
+// Ensure instance.appliancePlacement exists and covers all current stack
+// entries. Adds missing keys with default alternating assignments, and
+// replaces entries whose site ids no longer sit inside the instance's
+// siteIds (e.g. a site was removed).
 function ensurePlacement(instance) {
   if ((instance.siteIds || []).length < 2) return {};
   const existing = instance.appliancePlacement || {};
@@ -1799,11 +1842,16 @@ function liftV3Instance(v3Inst, siteIds) {
       // Drop the legacy componentsLocation enum — it existed briefly in v5.1
       // but is now superseded by componentsClusterId.
       const { componentsLocation: _legacy, ...rest } = d;
+      const stretchSiteIds =
+        placement === "stretched" && siteIds.length >= 2
+          ? [siteIds[0], siteIds[1]]
+          : null;
       return {
         ...rest,
         placement,
         hostSplitPct: getHostSplitPct(d),
         localSiteId,
+        stretchSiteIds,
         wldStack,
         componentsClusterId,
       };
@@ -1854,11 +1902,24 @@ function migrateV5ToV6(fleet) {
     ...fleet,
     version: "vcf-sizer-v6",
     instances: (fleet.instances || []).map(function(inst) {
+      var instSiteIds = inst.siteIds || [];
       return {
         ...inst,
         domains: (inst.domains || []).map(function(dom) {
+          // Backfill stretchSiteIds for stretched domains that pre-date the
+          // multi-site schema. Existing fleets only had 2-site stretched
+          // instances, so default to the first two site ids if the domain
+          // is stretched and the field is missing. Idempotent: leaves
+          // already-populated values alone.
+          var stretchSiteIds = dom.stretchSiteIds;
+          if (dom.placement === "stretched" && !stretchSiteIds && instSiteIds.length >= 2) {
+            stretchSiteIds = [instSiteIds[0], instSiteIds[1]];
+          } else if (dom.placement !== "stretched" && stretchSiteIds) {
+            stretchSiteIds = null;
+          }
           return {
             ...dom,
+            stretchSiteIds: stretchSiteIds != null ? stretchSiteIds : null,
             clusters: (dom.clusters || []).map(function(cl) {
               var updated = {
                 ...cl,
@@ -2302,11 +2363,14 @@ function minHostsForVerdict(cluster, result, hostSplitPct, targetVerdict) {
 // injects additional appliance demand onto specific clusters (built by
 // sizeInstance from wldStack componentsLocation decisions).
 //
-// `instanceIsStretched` + the domain's own `placement` decide whether we
-// compute a per-cluster failover analysis. Local domains and single-site
-// instances get `failover: null`.
-function sizeDomain(domain, extraByClusterId = {}, instanceIsStretched = false) {
-  const domainIsStretched = instanceIsStretched && domain.placement === "stretched";
+// The domain's own `placement` + a valid stretchSiteIds pair decide whether
+// we compute a per-cluster failover analysis. Local domains and stretched
+// domains without an explicit pair get `failover: null`.
+function sizeDomain(domain, extraByClusterId = {}, _unusedInstanceIsStretched = false) {
+  const domainIsStretched =
+    domain.placement === "stretched"
+    && Array.isArray(domain.stretchSiteIds)
+    && domain.stretchSiteIds.length === 2;
   const clusterResults = domain.clusters.map((c) => {
     const r = sizeCluster(c, extraByClusterId[c.id] || []);
     if (domainIsStretched) {
@@ -2339,7 +2403,6 @@ function sizeInstance(instance) {
   // Either way the wldStack entries are listed ONCE in sharedStack so the
   // Shared Appliances panel still shows the full appliance inventory.
   const domains = instance.domains || [];
-  const siteIds = instance.siteIds || [];
   const clusterById = {};
   for (const dom of domains) {
     for (const c of dom.clusters || []) clusterById[c.id] = c;
@@ -2360,9 +2423,18 @@ function sizeInstance(instance) {
     ];
   }
 
-  const instanceIsStretched = siteIds.length === 2;
+  // A domain is "effectively stretched" when it carries a placement of
+  // "stretched" AND an explicit 2-site pair via stretchSiteIds. With per-
+  // domain pairs, the instance itself may touch 3+ sites but only some
+  // domains may actually stretch.
+  const anyStretchedDomain = domains.some(
+    (d) =>
+      d.placement === "stretched"
+      && Array.isArray(d.stretchSiteIds)
+      && d.stretchSiteIds.length === 2
+  );
   const domainResults = domains.map((d) =>
-    sizeDomain(d, extraByClusterId, instanceIsStretched)
+    sizeDomain(d, extraByClusterId, anyStretchedDomain)
   );
   const sharedStack = [];
   for (const d of domains) {
@@ -2375,11 +2447,21 @@ function sizeInstance(instance) {
   }
   const sharedTotals = stackTotals(sharedStack);
   let witness = null;
-  if (instance.witnessEnabled && instanceIsStretched) {
+  if (instance.witnessEnabled && anyStretchedDomain) {
     const wDef = APPLIANCE_DB.vsanWitness;
     const wSz = wDef?.sizes?.[instance.witnessSize] || wDef?.sizes?.Medium;
+    // Count clusters that belong to an effectively-stretched domain (placement
+    // + valid 2-site pair). Stretched-without-pair domains don't trigger
+    // witness sizing.
     const stretchedClusters = domains.reduce(
-      (acc, d) => acc + (d.placement === "stretched" ? (d.clusters || []).length : 0),
+      (acc, d) =>
+        acc + (
+          d.placement === "stretched"
+          && Array.isArray(d.stretchSiteIds)
+          && d.stretchSiteIds.length === 2
+            ? (d.clusters || []).length
+            : 0
+        ),
       0
     );
     if (wSz && stretchedClusters > 0) {
@@ -2401,22 +2483,29 @@ function sizeInstance(instance) {
 
 function projectInstanceOntoSite(instanceResult, siteId) {
   const { instance, domainResults } = instanceResult;
-  const isPrimary = instance.siteIds[0] === siteId;
-  const isSecondary = instance.siteIds[1] === siteId;
-  if (!isPrimary && !isSecondary) return null;
+  const instSiteIds = instance.siteIds || [];
+  if (!instSiteIds.includes(siteId)) return null;
+
   const projectedDomains = [];
+  let anyPrimaryHere = false;
+  let anySecondaryHere = false;
+  let firstPartnerSiteId = null;
+
   for (let i = 0; i < domainResults.length; i++) {
     const dr = domainResults[i];
     const domain = instance.domains[i];
-    const stretched = domain.placement === "stretched" && instance.siteIds.length === 2;
+    const pair = Array.isArray(domain.stretchSiteIds) ? domain.stretchSiteIds : null;
+    const stretched =
+      domain.placement === "stretched" && pair && pair.length === 2;
+
     if (!stretched) {
       // Local domain — pinned to one specific site via localSiteId. Fall back
-      // to siteIds[0] for backward compatibility with pre-v5.1 data (where
+      // to instSiteIds[0] for backward compatibility with pre-v5.1 data (where
       // local always meant "primary site only").
       const localSite =
-        domain.localSiteId && instance.siteIds.includes(domain.localSiteId)
+        domain.localSiteId && instSiteIds.includes(domain.localSiteId)
           ? domain.localSiteId
-          : instance.siteIds[0];
+          : instSiteIds[0];
       if (localSite !== siteId) continue;
       projectedDomains.push({
         domain, domainResult: dr, sharePct: 100,
@@ -2427,6 +2516,19 @@ function projectInstanceOntoSite(instanceResult, siteId) {
       });
       continue;
     }
+
+    // Stretched domain — each domain carries its own 2-site pair, so the
+    // primary/secondary role is resolved per-domain against stretchSiteIds,
+    // not against the instance-wide siteIds.
+    const isPrimary = pair[0] === siteId;
+    const isSecondary = pair[1] === siteId;
+    if (!isPrimary && !isSecondary) continue; // this site isn't part of this domain's pair
+    if (isPrimary) anyPrimaryHere = true;
+    else anySecondaryHere = true;
+    if (firstPartnerSiteId === null) {
+      firstPartnerSiteId = isPrimary ? pair[1] : pair[0];
+    }
+
     const pct = getHostSplitPct(domain);
     const sharePct = isPrimary ? pct : 100 - pct;
     const frac = sharePct / 100;
@@ -2452,10 +2554,26 @@ function projectInstanceOntoSite(instanceResult, siteId) {
       }),
     });
   }
+
+  // Role captures how this site sits within the instance's stretched domains.
+  // "primary" when it's the primary of at least one pair; "secondary" when
+  // it only acts as a secondary. When no stretched domain touches this site
+  // (local-only projections, or single-site instances) we fall back to the
+  // instance's siteIds index so legacy 2-site fleets keep returning
+  // "primary"/"secondary" unchanged.
+  let role;
+  if (anyPrimaryHere) {
+    role = "primary";
+  } else if (anySecondaryHere) {
+    role = "secondary";
+  } else {
+    const idx = instSiteIds.indexOf(siteId);
+    role = idx === 0 ? "primary" : idx === 1 ? "secondary" : null;
+  }
   return {
     siteId, instance,
-    role: isPrimary ? "primary" : "secondary",
-    otherSiteId: instance.siteIds.length === 2 ? instance.siteIds[isPrimary ? 1 : 0] : null,
+    role,
+    otherSiteId: firstPartnerSiteId,
     projectedDomains,
   };
 }
@@ -2502,6 +2620,6 @@ function sizeFleet(fleet) {
 // ─────────────────────────────────────────────────────────────────────────────
 // UMD-style export — attach to window (browser) and module.exports (Node).
 // ─────────────────────────────────────────────────────────────────────────────
-const VcfEngine = { APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS, POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB, VLAN_ID_MIN, VLAN_ID_MAX, MTU_MGMT, MTU_VMOTION, MTU_VSAN, MTU_TEP_MIN, MTU_TEP_RECOMMENDED, DEFAULT_BGP_ASN_AA, TEP_POOL_GROWTH_FACTOR, NIC_PROFILES, createFleetNetworkConfig, createClusterNetworks, createHostIpOverride, ipToInt, intToIp, ipPoolSize, subnetContainsIp, allocateClusterIps, validateNetworkDesign, emitInstallerJson, emitWorkbookRows, recommendVcenterSize, recommendNsxSize, cryptoKey, baseHostSpec, baseStorageSettings, baseTiering, newCluster, newMgmtCluster, newWorkloadCluster, newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet, buildDefaultPlacement, ensurePlacement, getInitialInstance, isInitialInstance, getHostSplitPct, stackForInstance, promoteToInitial, inferDeploymentPathway, inferFederationEnabled, SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT, DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries, T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways, EDGE_DEPLOYMENT_MODELS, migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance, migrateV3ToV5, migrateV5ToV6, migrateFleet, stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster, analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance, projectInstanceOntoSite, sizeFleet };
+const VcfEngine = { APPLIANCE_DB, DEPLOYMENT_PROFILES, DEPLOYMENT_PATHWAYS, DEFAULT_MGMT_STACK_TEMPLATE, SIZING_LIMITS, POLICIES, TB_TO_TIB, TIB_PER_CORE, NVME_TIER_PARTITION_CAP_GB, VLAN_ID_MIN, VLAN_ID_MAX, MTU_MGMT, MTU_VMOTION, MTU_VSAN, MTU_TEP_MIN, MTU_TEP_RECOMMENDED, DEFAULT_BGP_ASN_AA, TEP_POOL_GROWTH_FACTOR, NIC_PROFILES, createFleetNetworkConfig, createClusterNetworks, createHostIpOverride, ipToInt, intToIp, ipPoolSize, subnetContainsIp, allocateClusterIps, validateNetworkDesign, emitInstallerJson, emitWorkbookRows, recommendVcenterSize, recommendNsxSize, cryptoKey, baseHostSpec, baseStorageSettings, baseTiering, newCluster, newMgmtCluster, newWorkloadCluster, newMgmtDomain, newWorkloadDomain, newInstance, newSite, newFleet, domainSites, buildDefaultPlacement, ensurePlacement, getInitialInstance, isInitialInstance, getHostSplitPct, stackForInstance, promoteToInitial, inferDeploymentPathway, inferFederationEnabled, SSO_MODES, inferSsoMode, ssoInstancesPerBroker, SSO_INSTANCES_PER_BROKER_LIMIT, DR_POSTURES, DR_REPLICATED_COMPONENTS, DR_BACKUP_COMPONENTS, isWarmStandby, countActivePerFleetEntries, T0_HA_MODES, T0_MAX_T0S_PER_EDGE_NODE, T0_MAX_UPLINKS_PER_EDGE_AA, newT0Gateway, validateT0Gateways, EDGE_DEPLOYMENT_MODELS, migrateV2ToV3, domainStructureMatches, stackSignature, liftV3Instance, migrateV3ToV5, migrateV5ToV6, migrateFleet, stackTotals, sizeHost, applyTiering, sizeStoragePipeline, sizeCluster, analyzeStretchedFailover, minHostsForVerdict, sizeDomain, sizeInstance, projectInstanceOntoSite, sizeFleet };
 if (typeof window !== "undefined") { window.VcfEngine = VcfEngine; }
 if (typeof module !== "undefined" && module.exports) { module.exports = VcfEngine; }

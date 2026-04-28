@@ -646,6 +646,7 @@
                 "localSiteId": "site-0001",
                 "name": "Management Domain",
                 "placement": "local",
+                "stretchSiteIds": null,
                 "type": "mgmt",
                 "wldStack": []
               },
@@ -1661,6 +1662,7 @@
                 "localSiteId": "site-0001",
                 "name": "Workload Domain — policy matrix",
                 "placement": "local",
+                "stretchSiteIds": null,
                 "type": "workload",
                 "wldStack": []
               },

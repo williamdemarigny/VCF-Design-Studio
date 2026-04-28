@@ -69,6 +69,26 @@ describe("liftV3Instance", () => {
     const wld = r.domains.find((d) => d.type === "workload");
     expect(wld.componentsLocation).toBeUndefined();
   });
+
+  it("populates stretchSiteIds on stretched domains with the 2-site pair", () => {
+    const inst = {
+      id: "inst-1", name: "test",
+      domains: [v3Domain("dom-1", "mgmt", [v3Cluster()])],
+    };
+    const r = liftV3Instance(inst, ["site-a", "site-b"]);
+    expect(r.domains[0].placement).toBe("stretched");
+    expect(r.domains[0].stretchSiteIds).toEqual(["site-a", "site-b"]);
+  });
+
+  it("leaves stretchSiteIds null for non-stretched domains", () => {
+    const inst = {
+      id: "inst-1", name: "test",
+      domains: [v3Domain("dom-1", "mgmt", [v3Cluster()])],
+    };
+    const r = liftV3Instance(inst, ["site-a"]);
+    expect(r.domains[0].placement).toBe("local");
+    expect(r.domains[0].stretchSiteIds).toBeNull();
+  });
 });
 
 describe("domainStructureMatches", () => {

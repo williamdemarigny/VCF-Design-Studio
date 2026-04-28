@@ -489,6 +489,7 @@
                 "localSiteId": "site-0001",
                 "name": "Management Domain",
                 "placement": "local",
+                "stretchSiteIds": null,
                 "type": "mgmt",
                 "wldStack": []
               },
@@ -931,6 +932,7 @@
                 "localSiteId": "site-0001",
                 "name": "HT On",
                 "placement": "local",
+                "stretchSiteIds": null,
                 "type": "workload",
                 "wldStack": []
               },
@@ -1293,6 +1295,7 @@
                 "localSiteId": "site-0001",
                 "name": "HT Off",
                 "placement": "local",
+                "stretchSiteIds": null,
                 "type": "workload",
                 "wldStack": []
               },

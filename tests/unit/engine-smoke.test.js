@@ -10,7 +10,7 @@ const EXPECTED_SYMBOLS = [
   "cryptoKey", "baseHostSpec", "baseStorageSettings", "baseTiering",
   "newCluster", "newMgmtCluster", "newWorkloadCluster",
   "newMgmtDomain", "newWorkloadDomain", "newInstance", "newSite", "newFleet",
-  "buildDefaultPlacement", "ensurePlacement",
+  "domainSites", "buildDefaultPlacement", "ensurePlacement",
   "getInitialInstance", "isInitialInstance", "getHostSplitPct", "stackForInstance",
   "promoteToInitial", "inferDeploymentPathway", "inferFederationEnabled",
   "SSO_MODES", "inferSsoMode", "ssoInstancesPerBroker", "SSO_INSTANCES_PER_BROKER_LIMIT",
@@ -68,6 +68,91 @@ describe("default fleet sizing", () => {
         }
       }
     }
+  });
+});
+
+describe("multi-site VCF instance sizing", () => {
+  const {
+    newFleet, newSite, newInstance, newWorkloadDomain, sizeFleet,
+    projectInstanceOntoSite,
+  } = VcfEngine;
+
+  function buildThreeSiteFleet() {
+    // Fleet with three sites: A (primary), B (stretched pair peer), C (remote).
+    const fleet = newFleet();
+    const siteA = fleet.sites[0];
+    const siteB = newSite("Site B", "");
+    const siteC = newSite("Site C", "");
+    fleet.sites.push(siteB, siteC);
+
+    // Replace the default instance with one that touches all three sites.
+    const inst = newInstance("multi-site", [siteA.id, siteB.id, siteC.id]);
+    // Mgmt domain (from newInstance) is stretched A↔B by default.
+    // Add a workload domain local to Site C.
+    const wldC = newWorkloadDomain("Remote WLD @ C");
+    wldC.placement = "local";
+    wldC.localSiteId = siteC.id;
+    wldC.stretchSiteIds = null;
+    inst.domains.push(wldC);
+    fleet.instances = [inst];
+    return { fleet, siteA, siteB, siteC };
+  }
+
+  it("mgmt domain stretched A↔B has both siteA and siteB in its projection", () => {
+    const { fleet, siteA, siteB } = buildThreeSiteFleet();
+    const result = sizeFleet(fleet);
+    const projA = projectInstanceOntoSite(result.instanceResults[0], siteA.id);
+    const projB = projectInstanceOntoSite(result.instanceResults[0], siteB.id);
+    expect(projA.projectedDomains.some((pd) => pd.domain.type === "mgmt")).toBe(true);
+    expect(projB.projectedDomains.some((pd) => pd.domain.type === "mgmt")).toBe(true);
+    expect(projA.role).toBe("primary");
+    expect(projB.role).toBe("secondary");
+    expect(projA.otherSiteId).toBe(siteB.id);
+    expect(projB.otherSiteId).toBe(siteA.id);
+  });
+
+  it("remote workload domain at C projects onto C only", () => {
+    const { fleet, siteA, siteB, siteC } = buildThreeSiteFleet();
+    const result = sizeFleet(fleet);
+    const projA = projectInstanceOntoSite(result.instanceResults[0], siteA.id);
+    const projB = projectInstanceOntoSite(result.instanceResults[0], siteB.id);
+    const projC = projectInstanceOntoSite(result.instanceResults[0], siteC.id);
+    expect(projA.projectedDomains.some((pd) => pd.domain.type === "workload")).toBe(false);
+    expect(projB.projectedDomains.some((pd) => pd.domain.type === "workload")).toBe(false);
+    expect(projC.projectedDomains.some((pd) => pd.domain.type === "workload")).toBe(true);
+  });
+
+  it("siteC has role from siteIds fallback (no stretched pair includes it)", () => {
+    const { fleet, siteC } = buildThreeSiteFleet();
+    const result = sizeFleet(fleet);
+    const projC = projectInstanceOntoSite(result.instanceResults[0], siteC.id);
+    // siteC is at index 2 → no primary/secondary role from pairs, fallback null
+    expect(projC.role).toBeNull();
+    expect(projC.otherSiteId).toBeNull();
+  });
+
+  it("witness sizing fires when any domain is stretched (even if instance touches 3 sites)", () => {
+    const { fleet } = buildThreeSiteFleet();
+    fleet.instances[0].witnessEnabled = true;
+    const result = sizeFleet(fleet);
+    expect(result.instanceResults[0].witness).not.toBeNull();
+    // One mgmt cluster is stretched → witness should be sized for 1 cluster.
+    expect(result.instanceResults[0].witness.instances).toBe(1);
+  });
+
+  it("total host count is stable when a local domain is added at a third site", () => {
+    const { fleet } = buildThreeSiteFleet();
+    const result = sizeFleet(fleet);
+    // Sum hosts across all site projections should equal the instance total.
+    let perSiteSum = 0;
+    for (const sr of result.siteResults) {
+      for (const p of sr.projections) {
+        for (const pd of p.projectedDomains) {
+          for (const pc of pd.projectedClusters) perSiteSum += pc.hostsHere;
+        }
+      }
+    }
+    expect(perSiteSum).toBe(result.totalHosts);
   });
 });
 

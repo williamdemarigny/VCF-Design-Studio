@@ -465,6 +465,10 @@
                 "localSiteId": null,
                 "name": "Management Domain",
                 "placement": "stretched",
+                "stretchSiteIds": [
+                  "site-0001",
+                  "site-0002"
+                ],
                 "type": "mgmt",
                 "wldStack": []
               },
@@ -933,6 +937,10 @@
                 "localSiteId": null,
                 "name": "Stretched Workload",
                 "placement": "stretched",
+                "stretchSiteIds": [
+                  "site-0001",
+                  "site-0002"
+                ],
                 "type": "workload",
                 "wldStack": []
               },
@@ -1419,6 +1427,10 @@
                 "localSiteId": null,
                 "name": "Management Domain",
                 "placement": "stretched",
+                "stretchSiteIds": [
+                  "site-0001",
+                  "site-0002"
+                ],
                 "type": "mgmt",
                 "wldStack": []
               },
@@ -1887,6 +1899,10 @@
                 "localSiteId": null,
                 "name": "Stretched Workload",
                 "placement": "stretched",
+                "stretchSiteIds": [
+                  "site-0001",
+                  "site-0002"
+                ],
                 "type": "workload",
                 "wldStack": []
               },
